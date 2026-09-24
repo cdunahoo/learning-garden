@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Learning Garden"></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Learning Garden"><script>window.LG_FIREBASE={"apiKey": "AIzaSyBGktSAsMJuVnNze9a-vmY0N3Izx3-ntpc", "authDomain": "learning-garden-bbc1f.firebaseapp.com", "projectId": "learning-garden-bbc1f", "storageBucket": "learning-garden-bbc1f.firebasestorage.app", "messagingSenderId": "445711382975", "appId": "1:445711382975:web:89592ef798c07590da490a"};</script></head><body>
 <title>Learning Garden</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Baloo+2:wght@600;800&display=swap">
@@ -345,6 +345,11 @@ textarea{-webkit-user-select:text;user-select:text;font-family:ui-monospace,Cons
   <div class="wrap">
     <div class="top"><h1>Grown-up corner</h1><button class="btn icon-btn" id="parentBack" aria-label="Back to games"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="#2B2F4E"/></svg></button></div>
     <div class="pcard" id="saveWarn" hidden style="border-color:var(--bad)"><h3>This tablet isn't saving progress</h3><p>The browser is blocking saved data here (private browsing, or site data turned off). Progress will be lost when the page closes. Make a backup code below, or turn off private browsing.</p></div>
+    <div class="pcard" id="syncCard" hidden>
+      <h3>Keep both tablets in sync</h3>
+      <p id="syncText"></p>
+      <div class="set"><button class="sbtn" id="syncIn">Sign in with Google</button><button class="danger" id="syncSwitch" hidden>Switch this tablet to this account</button><button class="sbtn" id="syncOut" hidden>Sign out</button><span class="muted" id="syncNote"></span></div>
+    </div>
     <div class="pcard"><h3>Last 7 days</h3><div id="weekSum" class="muted"></div><div class="week" id="week"></div></div>
     <div class="pcard">
       <h3>How the levels work</h3>
@@ -385,12 +390,12 @@ textarea{-webkit-user-select:text;user-select:text;font-family:ui-monospace,Cons
     </div>
     <div class="pcard">
       <h3>Back up or move her progress</h3>
-      <p class="muted">Each tablet saves its own progress. To move progress to the other tablet, or keep a spare copy: make a code here, copy it, and text or email it to yourself. On the other tablet, paste it below and tap Restore.</p>
+      <p class="muted">Make a code to keep a spare copy, or to bring her progress over from another copy of the app (like the claude.ai link). Copy the code and text or email it to yourself. Then paste it below on the tablet you want it on. Adding a code never erases anything: each game keeps whichever level is higher, and her stars and stickers are added together.</p>
       <div class="set"><button class="sbtn" id="bkMake">Make a backup code</button><button class="sbtn" id="bkCopy" hidden>Copy code</button><span class="muted" id="bkNote"></span></div>
       <textarea id="bkOut" readonly hidden aria-label="Backup code"></textarea>
       <div class="set" style="margin-top:12px"><label for="bkIn" class="muted">Paste a code to restore:</label></div>
       <textarea id="bkIn" aria-label="Paste a backup code"></textarea>
-      <div class="set"><button class="danger" id="bkRestore">Restore from code</button><span class="muted" id="bkRNote"></span></div>
+      <div class="set"><button class="danger" id="bkRestore">Add progress from code</button><span class="muted" id="bkRNote"></span></div>
     </div>
     <div class="pcard">
       <h3>Settings</h3>
@@ -418,39 +423,144 @@ const today=()=>new Date().toLocaleDateString('en-CA');
 function weighted(items,wf){const ws=items.map(wf);const tot=ws.reduce((a,b)=>a+b,0);let r=Math.random()*tot;for(let i=0;i<items.length;i++){r-=ws[i];if(r<=0)return items[i]}return items[items.length-1]}
 
 /* ---------- storage (same key as v1, so her progress carries over) ---------- */
-const KEY='learning-garden-v1',KEY2='learning-garden-v2';
-const DEF=()=>({v:2,rev:0,name:'',stars:0,stickers:[],skills:{},days:{},voice:true,rate:0.9,adv:0,feel:{ok:0,unsure:0},log:[],unlocked:[],unlockAll:false,seen:{}});
-let S=DEF(),saveOK=true,lastTxt=null;
+const KEY='learning-garden-v1',KEY2='learning-garden-v2',KEY3='learning-garden-v3',APPV=3;
+/* v3 saves live in their own key, so an older version of the app still open somewhere can't overwrite them;
+   older keys are only read and folded in */
+const DEF=()=>({v:3,appv:APPV,rev:0,epoch:0,gts:0,hi:0,name:'',skills:{},byDev:{},voice:true,rate:0.9,adv:0,feel:{ok:0,unsure:0},log:[],unlocked:[],unlockAll:false,seen:{}});
+let S=DEF(),saveOK=true,lastTxt=null;const seenRaw={};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const cmpJ=(x,y)=>{const a=JSON.stringify(x),b=JSON.stringify(y);return a<b?-1:a>b?1:0};
 function loadRaw(k){try{const r=localStorage.getItem(k);return r?JSON.parse(r):null}catch(e){return null}}
-/* fold another copy of her progress into ours (another tab, or an old v1 tab still open).
-   A reset/restore (epoch) beats everything older; otherwise each game keeps its most recently changed copy. */
-function mergeFrom(o){
-  if(!o||typeof o!=='object')return;
-  if((o.epoch||0)>(S.epoch||0)){S=Object.assign(DEF(),JSON.parse(JSON.stringify(o)));return}
-  if((o.epoch||0)<(S.epoch||0))return;
-  const os=o.skills||{};for(const id in os){const mine=S.skills[id],th=os[id];if(!th)continue;
-    const newer=!mine||(th.ts&&mine.ts?th.ts>mine.ts:(th.total||0)>(mine.total||0));if(newer)S.skills[id]=JSON.parse(JSON.stringify(th))}
-  if((o.settingsTs||0)>(S.settingsTs||0)){['voice','rate','name','unlockAll'].forEach(k=>{if(k in o)S[k]=o[k]});S.settingsTs=o.settingsTs}
-  S.gts=Math.max(S.gts||0,o.gts||0);
-  S.stars=Math.max(S.stars||0,o.stars||0);
-  if(Array.isArray(o.stickers)&&o.stickers.length>(S.stickers||[]).length)S.stickers=o.stickers.slice();
-  S.days=S.days||{};for(const d in (o.days||{})){const x=o.days[d],y=S.days[d];if(x&&(!y||(x.q||0)>(y.q||0)))S.days[d]=x}
-  if(Array.isArray(o.log)){S.log=S.log||[];const have=new Set(S.log.map(e=>e.d+e.id+e.msg));o.log.forEach(e=>{if(e&&!have.has(e.d+e.id+e.msg))S.log.push(e)});S.log.sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:0);if(S.log.length>50)S.log.length=50}
+function hashStr(x){let h=0;for(let i=0;i<x.length;i++)h=(h*31+x.charCodeAt(i))|0;return (h>>>0).toString(36)}
+/* each tablet keeps its own tally of stars, stickers and daily counts; the app shows the sum, so syncing never loses any */
+const DEV=(()=>{try{let d=localStorage.getItem('lg-device');if(!d){d=Math.random().toString(36).slice(2,10);localStorage.setItem('lg-device',d)}return d}catch(e){return 'tmp-'+Math.random().toString(36).slice(2,10)}})();
+/* a clock that never runs behind anything this tablet has already seen, because tablet clocks can disagree */
+function stamp(){const t=Math.max(Date.now(),(S.hi||0)+1);S.hi=t;return t}
+function me(){S.byDev=S.byDev||{};return S.byDev[DEV]||(S.byDev[DEV]={sv:0,n:0,stars:0,stickers:[],days:{}})}
+function bump(){const m=me();m.sv=(m.sv||0)+1;return m}
+const totalStars=()=>Object.values(S.byDev||{}).reduce((a,d)=>a+(d.stars||0),0);
+function allStickers(){return Object.keys(S.byDev||{}).sort().flatMap(k=>S.byDev[k].stickers||[]).map((x,i)=>[x,i]).sort((a,b)=>((a[0].t||0)-(b[0].t||0))||(a[1]-b[1])).map(x=>x[0]).slice(-80)}
+const stickerCount=()=>Object.values(S.byDev||{}).reduce((a,d)=>a+Math.max(d.n||0,(d.stickers||[]).length),0);
+function dayTotals(k){const t={q:0,ok:0,sec:0};Object.values(S.byDev||{}).forEach(d=>{const x=(d.days||{})[k];if(x){t.q+=x.q||0;t.ok+=x.ok||0;t.sec+=x.sec||0}});return t}
+/* only tablet k ever changes byDev[k], so its copy with the higher version (sv) is the newest */
+function mergeDev(a,b){
+  if(!b)return a;if(!a)return clone(b);
+  if(a.alias||b.alias){if(a.alias&&b.alias)return String(a.alias)<=String(b.alias)?a:clone(b);return a.alias?a:clone(b)}
+  const sa=a.sv||0,sb=b.sv||0;if(sb>sa)return clone(b);if(sa>sb)return a;
+  a.stars=Math.max(a.stars||0,b.stars||0);
+  const na=Math.max(a.n||0,(a.stickers||[]).length),nb=Math.max(b.n||0,(b.stickers||[]).length);
+  if(nb>na||(nb===na&&cmpJ(b.stickers||[],a.stickers||[])>0))a.stickers=(b.stickers||[]).slice();a.n=Math.max(na,nb);
+  a.days=a.days||{};for(const k in (b.days||{})){const x=b.days[k],y=a.days[k];if(x&&(!y||(x.q||0)>(y.q||0)||((x.q||0)===(y.q||0)&&cmpJ(x,y)>0)))a.days[k]=Object.assign({},x)}
+  return a;
+}
+/* older saves kept one shared tally */
+const legacyDev=o=>('stars' in o||'stickers' in o||'days' in o)?{sv:0,stars:o.stars||0,stickers:Array.isArray(o.stickers)?o.stickers:[],days:o.days&&typeof o.days==='object'?o.days:{}}:null;
+/* Old shared tallies (saves and codes from versions before sync). This tablet's own older save always goes into
+   one bucket, 'L-<this tablet>'. A code's old history that shares stickers with an old history already here is the
+   same history copied (stickers have random spots), so only its new part is added. */
+const sKey=x=>x.e+','+x.x+','+x.y;
+function related(a,b){const k=new Set((a.stickers||[]).map(sKey));return (b.stickers||[]).some(x=>k.has(sKey(x)))}
+function mergeLegacy(a,b){
+  const r=clone(a),ka=new Set((a.stickers||[]).map(sKey)),kb=new Set((b.stickers||[]).map(sKey));
+  const uniqB=(b.stickers||[]).filter(x=>!ka.has(sKey(x))),uniqAl=(a.stickers||[]).filter(x=>!kb.has(sKey(x)));
+  /* stickers only one copy has are all at the START of its list: the other copy dropped them at the 80 cap, so it
+     is simply a later snapshot of the same history (take the larger totals); otherwise the two copies branched */
+  const onlyFront=(list,uniq)=>{const u=new Set(uniq.map(sKey));let i=0;while(i<list.length&&u.has(sKey(list[i])))i++;return list.slice(i).every(x=>!u.has(sKey(x)))};
+  const later=!uniqB.length||!uniqAl.length||onlyFront(a.stickers||[],uniqAl)||onlyFront(b.stickers||[],uniqB);
+  if(later)r.stars=Math.max(a.stars||0,b.stars||0);
+  else{const per=(b.stars||0)/Math.max(1,(b.stickers||[]).length);r.stars=Math.max(a.stars||0,b.stars||0,(a.stars||0)+Math.round(uniqB.length*per))}
+  r.stickers=(a.stickers||[]).concat(uniqB);r.n=Math.max(r.n||0,r.stickers.length,b.n||0);
+  r.days=r.days||{};for(const k in (b.days||{})){const x=b.days[k],y=r.days[k];if(x&&(!y||(x.q||0)>(y.q||0)))r.days[k]=Object.assign({},x)}
+  r.sv=0;return r;
+}
+const isLeg=k=>/^[LC]-/.test(k);
+/* old-history buckets that share stickers are one history: combine them into the first key, alias the rest */
+function consolidateLegacy(){
+  const bd=S.byDev||{},keys=Object.keys(bd).filter(k=>isLeg(k)&&bd[k]&&!bd[k].alias).sort();
+  for(let i=0;i<keys.length;i++){const a=keys[i];if(bd[a].alias)continue;
+    for(let j=i+1;j<keys.length;j++){const b=keys[j];if(bd[b].alias)continue;
+      if(related(bd[a],bd[b])){bd[a]=mergeLegacy(bd[a],bd[b]);bd[b]={alias:a,sv:0,stars:0,stickers:[],days:{}}}}}
+}
+const logKey=e=>e.d+'|'+e.id+'|'+e.msg;
+const pickM=(x,y)=>x&&y?(String(x)>String(y)?x:y):(x||y||null);
+/* One game, level by level. Her current level only goes down for a deliberate move down (step back, fall back,
+   grown-up lowers it: 'dt') that is newer than the other copy's last move up ('ut'); otherwise the higher level wins.
+   opt.max (first link, adding a code): always keep the highest level and every mastered level. */
+function mergeSkill(a,b,opt){
+  if(!b)return a;if(!a)return clone(b);const mx=!!(opt&&opt.max);
+  const la=a.lvl||1,lb=b.lvl||1;
+  if(lb!==la){const hi=lb>la?b:a,lo=lb>la?a:b;
+    const down=mx?(lo.gdt||0)>Math.max(hi.ut||0,hi.dt||0,hi.gdt||0):(lo.dt||0)>Math.max(hi.ut||0,hi.dt||0);
+    a.lvl=down?lo.lvl:hi.lvl;
+    if(mx&&!down&&lb>la&&opt.now)a.ut=Math.max(a.ut||0,opt.now)}
+  a.ut=Math.max(a.ut||0,b.ut||0);a.dt=Math.max(a.dt||0,b.dt||0);a.gdt=Math.max(a.gdt||0,b.gdt||0);delete a.lt;
+  const ta=a.ts||0,tb=b.ts||0;
+  if(tb>ta||(tb===ta&&((b.total||0)>(a.total||0)||((b.total||0)===(a.total||0)&&cmpJ(b.hist||[],a.hist||[])>0))))a.hist=(b.hist||[]).slice();
+  a.total=Math.max(a.total||0,b.total||0);a.correct=Math.max(a.correct||0,b.correct||0);a.ts=Math.max(ta,tb);
+  a.best=Math.max(a.best||1,b.best||1,a.lvl||1);
+  a.lv=a.lv||{};const bl=b.lv||{};
+  for(const L in bl){const x=a.lv[L],y=bl[L];if(!y)continue;if(!x){a.lv[L]=clone(y);continue}
+    if(!mx||+L>=(a.lvl||1)){const m1=x.mt||0,m2=y.mt||0;if(m2>m1){a.lv[L]=clone(y);continue}if(m2<m1)continue}
+    const m=pickM(x.m,y.m),was=!!(x.was||y.was),nx=(x.n||0)+(x.rn||0),ny=(y.n||0)+(y.rn||0);
+    /* a code or first link that brings in mastery below her level stamps it now, so an older step back can't undo it */
+    const mt=Math.max(x.mt||0,y.mt||0,mx&&m&&opt.now&&+L<(a.lvl||1)?opt.now:0);
+    if(ny>nx||(ny===nx&&cmpJ(y,x)>0)){const r=clone(y);r.m=m;r.was=was;r.mt=mt;a.lv[L]=r}else{x.m=m;x.was=was;x.mt=mt}
+  }
+  return a;
+}
+const setOf=x=>({voice:'voice' in x?x.voice:true,rate:'rate' in x?x.rate:0.9,name:'name' in x?x.name:'',unlockAll:!!x.unlockAll});
+/* fold another copy of her progress into ours (another tab, a backup code, or the cloud).
+   A reset (newer epoch) beats everything older, unless the caller says to ignore epochs (first link, adding a code). */
+function mergeFrom(o,opt){
+  if(!o||typeof o!=='object')return;opt=opt||{};
+  S.hi=Math.max(S.hi||0,o.hi||0);
+  if(!opt.ignoreEpoch){
+    if((o.epoch||0)>(S.epoch||0)){const h=S.hi;S=Object.assign(DEF(),clone(o));S.hi=Math.max(S.hi||0,h);return}
+    if((o.epoch||0)<(S.epoch||0))return;
+  }
+  const otherEpoch=(o.epoch||0)!==(S.epoch||0);
+  if(opt.adoptEpoch)S.epoch=o.epoch||0;
+  const now=opt.maxLevels?stamp():0;S.skills=S.skills||{};const os=o.skills||{};for(const id in os){if(os[id])S.skills[id]=mergeSkill(S.skills[id],clone(os[id]),{max:!!opt.maxLevels,now})}
+  const so=o.settingsTs||0,ss=S.settingsTs||0;
+  if(so>ss||(so===ss&&cmpJ(setOf(o),setOf(S))>0)){Object.assign(S,setOf(o));S.settingsTs=so}
+  S.gts=Math.max(S.gts||0,o.gts||0);S.appv=Math.max(S.appv||0,o.appv||0);
+  S.byDev=S.byDev||{};const ob={},src=o.byDev||{};
+  for(const k in src){const key=opt.epochTallies&&otherEpoch&&!/^[LC]-/.test(k)?'E'+(o.epoch||0)+'-'+k:k;ob[key]=mergeDev(ob[key],clone(src[k]))}
+  for(const k in ob)S.byDev[k]=mergeDev(S.byDev[k],ob[k]);
+  const lg=legacyDev(o);
+  if(lg){let k=opt.legacyBucket||('C-'+(Object.keys(lg.days).sort()[0]||'none'));
+    for(let g=0;g<8&&S.byDev[k]&&S.byDev[k].alias;g++)k=S.byDev[k].alias;
+    const cur=S.byDev[k];S.byDev[k]=cur&&!cur.alias&&related(cur,lg)?mergeLegacy(cur,lg):mergeDev(cur,lg)}
+  consolidateLegacy();
+  S.adv=Math.max(S.adv||0,o.adv||0);S.feel=S.feel||{ok:0,unsure:0};if(o.feel){S.feel.ok=Math.max(S.feel.ok||0,o.feel.ok||0);S.feel.unsure=Math.max(S.feel.unsure||0,o.feel.unsure||0)}
+  const seenK=new Set(),lg2=[];[].concat(S.log||[],Array.isArray(o.log)?o.log:[]).forEach(e=>{if(e&&!seenK.has(logKey(e))){seenK.add(logKey(e));lg2.push(e)}});
+  lg2.sort((a,b)=>a.d<b.d?1:a.d>b.d?-1:logKey(a)<logKey(b)?-1:logKey(a)>logKey(b)?1:0);S.log=lg2.slice(0,50);
   if(Array.isArray(o.unlocked)){S.unlocked=S.unlocked||[];o.unlocked.forEach(id=>{if(!S.unlocked.includes(id))S.unlocked.push(id)})}
   S.seen=S.seen||{};for(const k in (o.seen||{}))S.seen[k]=Math.max(S.seen[k]||0,o.seen[k]||0);
   S.rev=Math.max(S.rev||0,o.rev||0);
 }
-{const a=loadRaw(KEY2),b=loadRaw(KEY);
- if(a&&a.v===2){S=Object.assign(DEF(),a);if(b)mergeFrom(b)}
- else if(b)S=Object.assign(DEF(),b);}
-const stamp=()=>Date.now();
-function save(){
+const OLDSEEN='lg-oldseen';
+function oldSeen(){try{return JSON.parse(localStorage.getItem(OLDSEEN)||'{}')||{}}catch(e){return {}}}
+/* an older version's save on this tablet: folded in once, and again only if an old version still open changes it */
+function foldOld(k){
+  let raw=null;try{raw=localStorage.getItem(k)}catch(e){}if(!raw)return false;
+  const seen=oldSeen(),h=hashStr(raw);if(seen[k]===h)return false;
+  seen[k]=h;try{localStorage.setItem(OLDSEEN,JSON.stringify(seen))}catch(e){}
+  let o=null;try{o=JSON.parse(raw)}catch(e){}if(!o||typeof o!=='object'||o.v===3)return false;
+  mergeFrom(o,{ignoreEpoch:true,legacyBucket:'L-'+DEV});return true;
+}
+{const c=loadRaw(KEY3);
+ if(c&&c.v===3)S=Object.assign(DEF(),c);
+ else{const b=loadRaw(KEY2)||loadRaw(KEY);if(b&&b.v!==3){S=Object.assign(DEF(),b);S.v=3;S.epoch=0;const lg=legacyDev(S);if(lg){S.byDev={};S.byDev['L-'+DEV]=lg;delete S.stars;delete S.stickers;delete S.days}}}
+ foldOld(KEY2);foldOld(KEY);}
+function save(noPush){
   try{
-    const cur=loadRaw(KEY2);if(cur&&cur.v===2&&(cur.rev||0)>(S.rev||0))mergeFrom(cur);
-    const old=localStorage.getItem(KEY);if(old&&old!==lastTxt){const o=JSON.parse(old);if(o&&o.v!==2)mergeFrom(o)}
+    const cur=loadRaw(KEY3);if(cur&&cur.v===3&&(cur.rev||0)>(S.rev||0))mergeFrom(cur);
+    foldOld(KEY2);foldOld(KEY);
     S.rev=(S.rev||0)+1;const txt=JSON.stringify(S);
-    localStorage.setItem(KEY2,txt);localStorage.setItem(KEY,txt);lastTxt=txt;saveOK=true;
+    localStorage.setItem(KEY3,txt);lastTxt=txt;saveOK=true;
   }catch(e){saveOK=false}
+  if(!noPush)cloudSoon();
 }
 
 /* ---------- voice ---------- */
@@ -636,27 +746,28 @@ function sk(id){
 function lvr(s,L){return s.lv[L]||(s.lv[L]={h:[],rv:[],n:0,m:null,was:false})}
 const lvPeek=(s,L)=>s.lv[L]||{};
 function masteredCount(id){const s=sk(id);let c=0;for(const L in s.lv)if(s.lv[L].m)c++;return c}
-function logEv(id,msg){S.log=S.log||[];S.log.unshift({d:today(),id,msg});if(S.log.length>50)S.log.length=50}
+function logEv(id,msg){S.log=S.log||[];const d=today();if(S.log.some(e=>e.d===d&&e.id===id&&e.msg===msg))return;S.log.unshift({d,id,msg});if(S.log.length>50)S.log.length=50}
 function isMastered(r){if(r.was&&r.h.length>=5&&r.h.slice(-5).every(x=>x===1))return true;const need=r.was?5:8;if(r.h.length<need)return false;const w=r.h.slice(-10);const miss=w.filter(x=>!x).length;return w[w.length-1]===1&&miss<=(w.length>=10?1:0)}
 function isStruggling(r){return r.h.length>=8&&r.h.slice(-8).filter(x=>x).length<=4}
 function stepBack(id,L){
-  const s=sk(id),a=lvr(s,L),b=lvr(s,L-1);a.h=[];a.rv=[];a.m=null;b.h=[];b.rv=[];b.m=null;s.lvl=L-1;s.ts=stamp();
+  const s=sk(id),a=lvr(s,L),b=lvr(s,L-1),t=stamp();a.h=[];a.rv=[];a.m=null;a.mt=t;b.h=[];b.rv=[];b.m=null;b.mt=t;s.lvl=L-1;s.ts=s.dt=t;
   logEv(id,`Stepped back to level ${L-1} to practice (missed about half of her first tries at level ${L})`);
   if(G){G.ev.push({k:'back',id,L:L-1});setTitle();toast('Let\'s practice this one more!')}
 }
 function fallBack(id,L,why){
   const s=sk(id),max=GAMES[id].levels.length;
-  for(let k=L;k<=max;k++){const r=lvr(s,k);r.m=null;r.h=[];r.rv=[]}
-  lvr(s,L).was=false;s.lvl=L;s.ts=stamp();
+  const t=stamp();for(let k=L;k<=max;k++){const r=lvr(s,k);r.m=null;r.h=[];r.rv=[];r.mt=t}
+  lvr(s,L).was=false;s.lvl=L;s.ts=s.dt=t;
   logEv(id,why==='review'?`Went back to level ${L}: she missed review questions from it`:`Went back to level ${L}: replaying it showed it isn't solid yet`);
   if(G){G.practice=null;G.ev.push({k:'back',id,L});setTitle();toast('Let\'s practice this one more!')}
 }
 function setLevel(id,n){
   const s=sk(id),max=GAMES[id].levels.length;n=Math.max(1,Math.min(max,n));if(n===s.lvl)return;
-  if(n<s.lvl){for(let k=n;k<=max;k++){const r=lvr(s,k);r.m=null;r.h=[];r.rv=[]}lvr(s,n).was=false}
-  else{for(let k=s.lvl;k<n;k++){const r=lvr(s,k);if(!r.m){r.m='set';r.was=true}}lvr(s,n).h=[]}
-  s.lvl=n;s.best=Math.max(s.best,n);s.ts=S.gts=stamp();
-  logEv(id,`A grown-up set it to level ${n}: ${GAMES[id].levels[n-1][0]}`);checkUnlocks();save();
+  const t=stamp(),down=n<s.lvl;
+  if(n<s.lvl){for(let k=n;k<=max;k++){const r=lvr(s,k);r.m=null;r.h=[];r.rv=[];r.mt=t}lvr(s,n).was=false}
+  else{for(let k=s.lvl;k<n;k++){const r=lvr(s,k);if(!r.m){r.m='set';r.was=true;r.mt=t}}const r=lvr(s,n);r.h=[];r.mt=t}
+  s.lvl=n;s.best=Math.max(s.best,n);s.ts=S.gts=t;if(down){s.dt=t;s.gdt=t}else s.ut=t;
+  logEv(id,`A grown-up set it to level ${n}: ${GAMES[id].levels[n-1][0]}`);checkUnlocks();save();urgentPush();
 }
 
 /* ---------- unlocks: new games open as she's ready ---------- */
@@ -710,19 +821,19 @@ function attempt(q,ok,node){
 function finishQ(first,slow){
   const id=G.id,g=GAMES[id],s=sk(id),q=G.q,L=q.level,r=lvr(s,L),max=g.levels.length;
   s.ts=stamp();s.total++;if(first)s.correct++;s.hist.push(first?1:0);if(s.hist.length>20)s.hist.shift();
-  if(first||slow){S.stars++;G.firsts++}
-  const d=S.days[today()]||(S.days[today()]={q:0,ok:0,sec:0});d.q++;if(first)d.ok++;d.sec+=Math.min(60,(Date.now()-G.t0)/1000);
+  const mine=bump();if(first||slow){mine.stars++;G.firsts++}
+  const d=mine.days[today()]||(mine.days[today()]={q:0,ok:0,sec:0});d.q++;if(first)d.ok++;d.sec+=Math.min(60,(Date.now()-G.t0)/1000);
   G.results.push(first?1:slow?'s':0);
   if(q.review){
-    r.rv.push(first?1:0);if(r.rv.length>3)r.rv.shift();
+    r.rv.push(first?1:0);r.rn=(r.rn||0)+1;if(r.rv.length>3)r.rv.shift();
     if(r.rv.filter(x=>!x).length>=2)fallBack(id,L,'review');
   }else{
     r.h.push(first?1:0);if(r.h.length>10)r.h.shift();r.n++;
     if(isMastered(r)){
-      const before=!!r.m;r.m=today();r.was=true;r.rv=[];
+      const before=!!r.m;r.m=today();r.was=true;r.rv=[];r.mt=stamp();
       if(!before)logEv(id,`Mastered level ${L}: ${g.levels[L-1][0]}`);
       if(L>=s.lvl){
-        if(L<max){s.lvl=L+1;s.best=Math.max(s.best,s.lvl);lvr(s,s.lvl);G.ev.push({k:'up',id,L:s.lvl});G.practice=null;setTitle();toast('⭐ Level up!')}
+        if(L<max){s.lvl=L+1;s.ut=stamp();s.best=Math.max(s.best,s.lvl);lvr(s,s.lvl);G.ev.push({k:'up',id,L:s.lvl});G.practice=null;setTitle();toast('⭐ Level up!')}
         else if(!G.ev.some(e=>e.k==='top')&&!before){G.ev.push({k:'top',id});logEv(id,'Mastered every level')}
       }
     }else if(isStruggling(r)){
@@ -758,8 +869,8 @@ function startRound(id,queue,practice){
 function endRound(){
   const g=G;G.q=null;sfx.win();
   const got=checkUnlocks();got.forEach(id=>g.ev.push({k:'unlock',id}));
-  const st=pick(STICKERS);S.stickers.push({e:st,x:rnd(4,96),y:rnd(50,86)});
-  if(S.stickers.length>80)S.stickers.shift();save();
+  const st=pick(STICKERS);const mine=bump();mine.n=Math.max(mine.n||0,(mine.stickers||[]).length)+1;mine.stickers.push({e:st,x:rnd(4,96),y:rnd(50,86),t:stamp()});
+  if(mine.stickers.length>80)mine.stickers.shift();save();
   const c=$('#rewardCard');c.innerHTML='';
   c.appendChild(el('div','sticker',st));
   c.appendChild(el('h2',null,g.firsts>=g.len-1?(S.name?'Amazing, '+S.name+'!':'Amazing!'):(S.name?'Great work, '+S.name+'!':'Great work!')));
@@ -1373,11 +1484,12 @@ function tileFor(id){
 }
 function drawHome(){
   $('#homeSun').outerHTML=sunSVG('ok').replace('<svg','<svg class="sun" id="homeSun"');
-  $('#hiName').textContent=S.name?`Hi, ${S.name}!`:'Hi there!';$('#starCount').textContent=S.stars;
+  $('#hiName').textContent=S.name?`Hi, ${S.name}!`:'Hi there!';$('#starCount').textContent=totalStars();
   const g=$('#garden');g.innerHTML='';
-  if(!S.stickers.length)g.appendChild(el('div','empty','Finish a game to plant your first sticker!'));
-  S.stickers.forEach(s=>{const e=el('span','stk',s.e);e.style.left=s.x+'%';e.style.top=s.y+'%';if(S.stickers.length>30)e.style.fontSize='26px';g.appendChild(e)});
-  if(S.stickers.length)g.appendChild(el('span','cnt',S.stickers.length+' stickers'));
+  const stk=allStickers();
+  if(!stk.length)g.appendChild(el('div','empty','Finish a game to plant your first sticker!'));
+  stk.forEach(s=>{const e=el('span','stk',s.e);e.style.left=s.x+'%';e.style.top=s.y+'%';if(stk.length>30)e.style.fontSize='26px';g.appendChild(e)});
+  if(stk.length){const c=stickerCount();g.appendChild(el('span','cnt',c+(c===1?' sticker':' stickers')))}
   const plan=planAdventure();window.__plan=plan;
   $('#advTrio').textContent=plan.map(p=>GAMES[p].emoji).join('');
   $('#advSub').textContent=plan.map(p=>GAMES[p].name).join(' · ');
@@ -1401,9 +1513,9 @@ function pct(h){return h.length?Math.round(100*h.reduce((a,b)=>a+b,0)/h.length):
 function drawParent(){
   $('#saveWarn').hidden=saveOK;
   $('#lvTotal').textContent=ORDER.reduce((a,id)=>a+GAMES[id].levels.length,0);
-  const days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));const k=d.toLocaleDateString('en-CA');return{k,lab:d.toLocaleDateString('en-US',{weekday:'short'}),v:S.days[k]||{q:0,ok:0,sec:0}}});
+  const days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));const k=d.toLocaleDateString('en-CA');return{k,lab:d.toLocaleDateString('en-US',{weekday:'short'}),v:dayTotals(k)}});
   const mins=Math.round(days.reduce((a,d)=>a+d.v.sec,0)/60),qs=days.reduce((a,d)=>a+d.v.q,0),oks=days.reduce((a,d)=>a+d.v.ok,0),act=days.filter(d=>d.v.q>0).length;
-  $('#weekSum').textContent=qs?`${act} of 7 days · about ${mins} min · ${qs} questions · ${Math.round(100*oks/qs)}% right on the first try · ${S.stickers.length} stickers so far`:'No practice yet this week. The bars fill in as she plays.';
+  $('#weekSum').textContent=qs?`${act} of 7 days · about ${mins} min · ${qs} questions · ${Math.round(100*oks/qs)}% right on the first try · ${stickerCount()} stickers so far`:'No practice yet this week. The bars fill in as she plays.';
   const mx=Math.max(1,...days.map(d=>d.v.q));const w=$('#week');w.innerHTML='';
   days.forEach(d=>{const c=el('div');const b=el('b');b.style.height=(d.v.q/mx*70)+'px';c.appendChild(el('span',null,d.v.q||''));c.appendChild(b);c.appendChild(el('span',null,d.lab));w.appendChild(c)});
   const t=$('#skillTbl');t.innerHTML='<tr><th>Game</th><th>Working on now</th><th>Mastered</th><th>Last 20</th><th>Move</th></tr>';
@@ -1421,45 +1533,171 @@ function drawParent(){
   const bars=(id,rows)=>{const b=$(id);if(!b)return;b.innerHTML='';rows.forEach(([n,v])=>{const r=el('div','bar');r.appendChild(el('span',null,n));const tr=el('div','tr');const f=el('b');f.style.width=v+'%';f.style.background=v<25?'#D9485F':v<40?'#F2B33D':'#2E9E4F';tr.appendChild(f);r.appendChild(tr);r.appendChild(el('span',null,v));b.appendChild(r)})};
   bars('#litBars',[['Letter Naming',46],['Letter Word Sounds',52],['Initial Sounds',58],['Composite',46]]);
   bars('#numBars',[['Number Naming',13],['Quantity Total',23],['Concepts & Appl.',37],['Composite',18]]);
-  document.querySelectorAll('#voiceSeg button').forEach(b=>{b.classList.toggle('on',(b.dataset.v==='1')===S.voice);b.onclick=()=>{S.voice=b.dataset.v==='1';S.settingsTs=S.gts=stamp();save();drawParent()}});
-  document.querySelectorAll('#rateSeg button').forEach(b=>{b.classList.toggle('on',+b.dataset.r===S.rate);b.onclick=()=>{S.rate=+b.dataset.r;S.settingsTs=S.gts=stamp();save();drawParent();say('This is how fast I talk.')}});
-  document.querySelectorAll('#unlockSeg button').forEach(b=>{b.classList.toggle('on',(b.dataset.u==='1')===!!S.unlockAll);b.onclick=()=>{S.unlockAll=b.dataset.u==='1';S.settingsTs=S.gts=stamp();save();drawParent()}});
-  const ni=$('#nameIn');if(document.activeElement!==ni)ni.value=S.name;ni.onchange=()=>{S.name=ni.value.trim();S.settingsTs=S.gts=stamp();save()};
+  document.querySelectorAll('#voiceSeg button').forEach(b=>{b.classList.toggle('on',(b.dataset.v==='1')===S.voice);b.onclick=()=>{S.voice=b.dataset.v==='1';S.settingsTs=S.gts=stamp();save();urgentPush();drawParent()}});
+  document.querySelectorAll('#rateSeg button').forEach(b=>{b.classList.toggle('on',+b.dataset.r===S.rate);b.onclick=()=>{S.rate=+b.dataset.r;S.settingsTs=S.gts=stamp();save();urgentPush();drawParent();say('This is how fast I talk.')}});
+  document.querySelectorAll('#unlockSeg button').forEach(b=>{b.classList.toggle('on',(b.dataset.u==='1')===!!S.unlockAll);b.onclick=()=>{S.unlockAll=b.dataset.u==='1';S.settingsTs=S.gts=stamp();save();urgentPush();drawParent()}});
+  const ni=$('#nameIn');if(document.activeElement!==ni)ni.value=S.name;ni.onchange=()=>{S.name=ni.value.trim();S.settingsTs=S.gts=stamp();save();urgentPush()};
 }
-function migrate(quiet){S.v=2;['stickers','log','unlocked'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.seen||typeof S.seen!=='object')S.seen={};if(!S.days||typeof S.days!=='object')S.days={};if(!S.feel)S.feel={ok:0,unsure:0};
-  if(!S.skills||typeof S.skills!=='object')S.skills={};Object.keys(S.skills).forEach(id=>{if(GAMES[id])sk(id);else delete S.skills[id]});
+function migrate(quiet){S.v=3;S.appv=Math.max(S.appv||0,APPV);S.epoch=S.epoch||0;S.gts=S.gts||0;['log','unlocked'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.seen||typeof S.seen!=='object')S.seen={};if(!S.feel)S.feel={ok:0,unsure:0};
+  if(!S.byDev||typeof S.byDev!=='object')S.byDev={};const lg=legacyDev(S);if(lg){const k='L-'+DEV;S.byDev[k]=mergeDev(S.byDev[k],lg);delete S.stars;delete S.stickers;delete S.days}consolidateLegacy();
+  if(!S.skills||typeof S.skills!=='object')S.skills={};Object.keys(S.skills).forEach(id=>{if(GAMES[id])sk(id)});
   for(const id in UNLOCK)if(!S.unlocked.includes(id)&&UNLOCK[id].ok())S.unlocked.push(id);
   if(!quiet)save()}
 /* another tab saved: pick it up. A grown-up change or reset there ends a round in progress here, so it can't be undone. */
 function syncFromStorage(){
-  const o=loadRaw(KEY2);if(!o||o.v!==2)return;
+  const o=loadRaw(KEY3);if(!o||o.v!==3)return;
   const grown=(o.gts||0)>(S.gts||0)||(o.epoch||0)>(S.epoch||0);
   if(G&&!grown){if((o.rev||0)>(S.rev||0))mergeFrom(o);return}
   if(!grown&&(o.rev||0)<=(S.rev||0))return;
   if((o.epoch||0)<(S.epoch||0))return;
   if(G){G=null;$('#reward').hidden=true;hush()}
   const typing=document.activeElement&&document.activeElement.id==='nameIn';
-  S=Object.assign(DEF(),o);migrate(true);lastTxt=localStorage.getItem(KEY);
+  const h=S.hi;S=Object.assign(DEF(),o);S.hi=Math.max(S.hi||0,h||0);migrate(true);lastTxt=localStorage.getItem(KEY3);
   const vis=['home','path','parent'].find(id=>!$('#'+id).hidden)||'home';if(!(vis==='parent'&&typing))show(vis==='path'&&!P?'home':vis);
 }
 window.addEventListener('storage',e=>{
-  if(e.key===KEY2)syncFromStorage();
-  else if(e.key===KEY&&!G){const o=loadRaw(KEY);if(o&&o.v!==2){mergeFrom(o);save();const vis=['home','path','parent'].find(id=>!$('#'+id).hidden);if(vis)show(vis)}}
+  if(e.key===KEY3)syncFromStorage();
+  else if((e.key===KEY2||e.key===KEY)&&!G){if(foldOld(e.key)){save();const vis=['home','path','parent'].find(id=>!$('#'+id).hidden);if(vis)show(vis)}}
 });
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncFromStorage()});
 
+/* ---------- cloud sync: Google sign-in + one private Firestore document per family ----------
+   Only the hosted copy turns this on (it sets window.LG_FIREBASE). Both tablets sign in with the same Google account.
+   Every write is a transaction: read the cloud copy, merge it in, write the result, so nothing another tablet saved
+   is ever overwritten. A tablet stays linked to the first account it syncs with ('lg-owner'). */
+const FB=window.LG_FIREBASE||null,FBV='12.19.0';
+const cloud={user:null,ref:null,unsub:null,t:null,busy:null,again:false,status:'',err:'',last:0,linking:false,mismatch:false,outdated:false,fail:0,retryT:null,echo:[],listenErr:false,swArmed:false};
+let memOwner=null;const owner={get(){try{return localStorage.getItem('lg-owner')||memOwner}catch(e){return memOwner}},set(u){memOwner=u;try{localStorage.setItem('lg-owner',u)}catch(e){}}};
+function stableStr(o){
+  const norm=v=>{if(Array.isArray(v))return v.map(norm);if(v&&typeof v==='object'){const r={};Object.keys(v).sort().forEach(k=>{if(k!=='rev'&&v[k]!=null&&v[k]!==0&&v[k]!==false&&v[k]!=='')r[k]=norm(v[k])});return r}return v};
+  const c=norm(o||{});if(Array.isArray(c.log))c.log=c.log.map(e=>JSON.stringify(e)).sort();if(Array.isArray(c.unlocked))c.unlocked=c.unlocked.slice().sort();return JSON.stringify(c);
+}
+function loadJS(src){return new Promise((res,rej)=>{const t=document.createElement('script');t.src=src;t.async=true;t.onload=res;t.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(t)})}
+function niceErr(e){const c=(e&&e.code)||'';if(/permission-denied/.test(c))return 'the database rules are blocking it. Check the Firestore rules in the Firebase console.';if(/unavailable|network|deadline/.test(c))return 'no internet connection right now.';return (e&&e.message)||String(e)}
+function drawSync(){
+  if(!FB)return;const t=$('#syncText'),i=$('#syncIn'),o=$('#syncOut'),sw=$('#syncSwitch'),n=$('#syncNote');$('#syncCard').hidden=false;sw.hidden=true;
+  if(cloud.user){
+    const em=cloud.user.email||'your Google account';i.hidden=true;o.hidden=false;
+    if(cloud.mismatch){t.textContent=`Signed in as ${em}, but the progress on this tablet belongs to a different Google account, so nothing is synced right now. To use ${em} on this tablet, tap Switch. This tablet will then show that account's progress. Its current progress is set aside for the other account and comes back if you switch back.`;sw.hidden=false;sw.textContent=cloud.swArmed?'Tap again to switch':'Switch this tablet to this account';n.textContent='';return}
+    t.textContent=`Signed in as ${em}. Her progress is saved to your account, and every tablet signed in with this same account shows the same progress. Only you can see it.`;
+    n.textContent=cloud.outdated?'A newer version of the app is saving to your account. Reload this page to update it, and syncing will start again.':
+      cloud.status==='error'?'Not saved to your account yet: '+cloud.err+(cloud.listenErr?' The app will keep trying. Reload the page after fixing it.':''):
+      cloud.status==='offline'?'Offline. Her progress is safe on this tablet and will sync when the internet is back.':
+      cloud.status==='syncing'?'Syncing…':cloud.last?'Synced at '+new Date(cloud.last).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
+  }else{
+    t.textContent='Sign in with Google on the iPad and on the Cozyla, using the same Google account on both. Her levels, stars and stickers then stay the same on every tablet. Only you can see her progress.';
+    i.hidden=false;o.hidden=true;n.textContent=cloud.err?'Sign-in problem: '+cloud.err:(window.firebase?'':'Loading sign-in…');
+  }
+}
+async function cloudInit(){
+  if(!FB)return;drawSync();
+  try{
+    const b=`https://www.gstatic.com/firebasejs/${FBV}/`;
+    await loadJS(b+'firebase-app-compat.js');await loadJS(b+'firebase-auth-compat.js');await loadJS(b+'firebase-firestore-compat.js');
+    firebase.initializeApp(FB);
+    firebase.auth().onAuthStateChanged(u=>{
+      cloud.user=u;cloudDetach();cloud.mismatch=false;cloud.swArmed=false;cloud.outdated=false;
+      if(u){const ow=owner.get();if(ow&&ow!==u.uid)cloud.mismatch=true;else cloudAttach(!ow)}else{cloud.status='';cloud.last=0}
+      drawSync()});
+    firebase.auth().getRedirectResult().catch(e=>{cloud.err=e.message||String(e);drawSync()});
+  }catch(e){cloud.status='error';cloud.err='Sign-in could not load. Check the internet connection, then reload.';drawSync()}
+}
+function cloudDetach(){if(cloud.unsub){try{cloud.unsub()}catch(e){}cloud.unsub=null}cloud.ref=null;clearTimeout(cloud.t);cloud.t=null;clearTimeout(cloud.retryT)}
+function cloudAttach(linking){
+  cloudDetach();cloud.linking=!!linking;cloud.listenErr=false;cloud.status='syncing';
+  const ref=cloud.ref=firebase.firestore().collection('families').doc(cloud.user.uid);
+  cloud.unsub=ref.onSnapshot(snap=>{
+    if(cloud.ref!==ref||(snap.metadata&&snap.metadata.hasPendingWrites))return;
+    if(cloud.linking){cloudPush();return}
+    if(!snap.exists){if(snap.metadata&&snap.metadata.fromCache){if(!cloud.t&&!cloud.busy){cloud.status='offline';drawSync()}}else cloudPush();return}
+    let o=null;try{o=JSON.parse(snap.data().state)}catch(e){}
+    if(!o)return;
+    if((o.appv||0)>APPV){cloud.outdated=true;drawSync();return}
+    applyRemote(o);
+    if(stableStr(S)!==stableStr(o)){const now=Date.now();cloud.echo=cloud.echo.filter(x=>now-x<60000);if(cloud.echo.length<6){cloud.echo.push(now);cloudSoon(800)}}
+    else if(!cloud.t&&!cloud.busy&&cloud.status!=='error'){cloud.status='synced';cloud.last=Date.now();cloud.err=''}
+    drawSync();
+  },e=>{if(cloud.ref!==ref)return;cloud.listenErr=true;cloud.unsub=null;cloud.fail++;cloud.status=/unavailable/.test((e&&e.code)||'')?'offline':'error';cloud.err=niceErr(e);drawSync();scheduleRetry()});
+}
+function cloudSoon(ms){try{if(!cloud.ref||cloud.mismatch||cloud.outdated)return;clearTimeout(cloud.t);cloud.t=setTimeout(()=>{cloud.t=null;cloudPush()},ms==null?2500:ms)}catch(e){}}
+function urgentPush(){try{if(cloud.ref)cloudPush()}catch(e){}}
+function scheduleRetry(){clearTimeout(cloud.retryT);const d=Math.min(60000,5000*Math.pow(2,Math.min(cloud.fail,4)));cloud.retryT=setTimeout(()=>{if(!cloud.user||cloud.mismatch)return;if(cloud.listenErr||!cloud.unsub)cloudAttach(cloud.linking);else cloudPush()},d)}
+function cloudPush(){
+  if(!cloud.ref||cloud.mismatch||cloud.outdated)return Promise.resolve();
+  if(cloud.busy){cloud.again=true;return cloud.busy}
+  clearTimeout(cloud.t);cloud.t=null;cloud.status='syncing';drawSync();
+  const ref=cloud.ref,uid=cloud.user.uid,linking=cloud.linking,before=stableStr(S),g0=S.gts||0,e0=S.epoch||0;
+  cloud.busy=firebase.firestore().runTransaction(tx=>tx.get(ref).then(snap=>{
+      let remote=null;if(snap.exists){try{remote=JSON.parse(snap.data().state)}catch(e){}}
+      if(remote&&(remote.appv||0)>APPV)throw {code:'app-outdated'};
+      if(remote){mergeFrom(remote,linking?{ignoreEpoch:true,adoptEpoch:true,maxLevels:true}:{});migrate(true)}
+      tx.set(ref,{state:JSON.stringify(S),rev:S.rev||0,dev:DEV,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    }))
+    .then(()=>{cloud.busy=null;if(cloud.ref!==ref)return;
+      if(linking){owner.set(uid);cloud.linking=false}
+      cloud.fail=0;cloud.status='synced';cloud.last=Date.now();cloud.err='';save(true);
+      refreshAfterMerge(before,(S.gts||0)>g0||(S.epoch||0)>e0);drawSync();
+      if(cloud.again){cloud.again=false;cloudSoon(300)}})
+    .catch(e=>{cloud.busy=null;if(cloud.ref!==ref)return;
+      if(e&&e.code==='app-outdated'){cloud.outdated=true;drawSync();return}
+      cloud.fail++;cloud.status=(navigator.onLine===false||/unavailable|deadline/.test((e&&e.code)||''))?'offline':'error';cloud.err=niceErr(e);drawSync();scheduleRetry()});
+  return cloud.busy;
+}
+function refreshAfterMerge(before,grown){
+  if(stableStr(S)===before)return;
+  if(G){if(grown){G=null;$('#reward').hidden=true;hush();show('home')}return}
+  const typing=document.activeElement&&document.activeElement.id==='nameIn';
+  const vis=['home','path','parent'].find(id=>!$('#'+id).hidden)||'home';if(!(vis==='parent'&&typing))show(vis==='path'&&!P?'home':vis);
+}
+/* fold a cloud copy into this tablet's progress; a grown-up change or reset elsewhere ends a round in progress */
+function applyRemote(o){
+  const grown=(o.gts||0)>(S.gts||0)||(o.epoch||0)>(S.epoch||0);
+  const before=stableStr(S);mergeFrom(o);migrate(true);save(true);refreshAfterMerge(before,grown);
+}
+$('#syncIn').onclick=()=>{
+  if(!window.firebase||!firebase.auth){cloud.err='Sign-in is still loading. Try again in a moment.';drawSync();return}
+  cloud.err='';drawSync();const pr=new firebase.auth.GoogleAuthProvider();pr.setCustomParameters({prompt:'select_account'});
+  firebase.auth().signInWithPopup(pr).catch(e=>{const c=(e&&e.code)||'';
+    if(/popup-blocked|operation-not-supported/.test(c))firebase.auth().signInWithRedirect(pr).catch(e2=>{cloud.err=e2.message||String(e2);drawSync()});
+    else if(!/popup-closed|cancelled-popup/.test(c)){cloud.err=e.message||String(e);drawSync()}});
+};
+$('#syncOut').onclick=async()=>{if(!window.firebase)return;if(cloud.t||cloud.busy){try{await cloudPush()}catch(e){}}firebase.auth().signOut()};
+$('#syncSwitch').onclick=()=>{
+  if(!cloud.user)return;if(!cloud.swArmed){cloud.swArmed=true;drawSync();setTimeout(()=>{cloud.swArmed=false;drawSync()},5000);return}
+  cloud.swArmed=false;const old=owner.get(),uid=cloud.user.uid;
+  try{if(old)localStorage.setItem('lg-slot-'+old,JSON.stringify(S))}catch(e){}
+  let slot=null;try{slot=JSON.parse(localStorage.getItem('lg-slot-'+uid)||'null')}catch(e){}
+  const h=S.hi;S=slot?Object.assign(DEF(),slot):DEF();S.hi=Math.max(S.hi||0,h||0);S.rev=((loadRaw(KEY3)||{}).rev||0)+1;migrate(true);save(true);
+  owner.set(uid);cloud.mismatch=false;cloudAttach(true);show('parent');
+};
+window.addEventListener('online',()=>{if(cloud.user&&!cloud.mismatch){cloud.fail=0;if(cloud.listenErr||!cloud.unsub)cloudAttach(cloud.linking);else cloudPush()}});
+document.addEventListener('visibilitychange',()=>{
+  if(!cloud.user||cloud.mismatch)return;
+  if(document.hidden){if(cloud.t)cloudPush();return}
+  if(cloud.listenErr||!cloud.unsub)cloudAttach(cloud.linking);else if(cloud.status==='error'||cloud.status==='offline')cloudPush();
+});
+
 let armed=false;
-$('#resetBtn').onclick=()=>{const b=$('#resetBtn');if(!armed){armed=true;b.classList.add('armed');b.textContent='Tap again to erase everything';$('#resetNote').textContent='Stars, stickers and levels will be erased.';setTimeout(()=>{armed=false;b.classList.remove('armed');b.textContent='Reset all progress';$('#resetNote').textContent=''},4000)}else{const nm=S.name;S=DEF();S.name=nm;S.rev=((loadRaw(KEY2)||{}).rev||0)+1;S.epoch=S.gts=stamp();migrate();armed=false;b.classList.remove('armed');b.textContent='Reset all progress';$('#resetNote').textContent='Progress erased.';drawParent()}};
+$('#resetBtn').onclick=()=>{const b=$('#resetBtn');if(!armed){armed=true;b.classList.add('armed');b.textContent='Tap again to erase everything';$('#resetNote').textContent=cloud.user&&!cloud.mismatch?`Her stars, stickers and levels will be erased on every tablet signed in as ${cloud.user.email||'this account'}.`:'Stars, stickers and levels will be erased.';setTimeout(()=>{armed=false;b.classList.remove('armed');b.textContent='Reset all progress';$('#resetNote').textContent=''},4000)}else{armed=false;b.classList.remove('armed');b.textContent='Reset all progress';
+  const t=stamp(),n=DEF();n.name=S.name;n.hi=t;n.epoch=n.gts=t;n.rev=((loadRaw(KEY3)||{}).rev||0)+1;
+  const apply=msg=>{S=n;migrate();$('#resetNote').textContent=msg;drawParent()};
+  if(cloud.user&&!cloud.mismatch&&cloud.ref&&window.firebase){
+    $('#resetNote').textContent='Erasing…';const ref=cloud.ref;
+    firebase.firestore().runTransaction(tx=>tx.get(ref).then(()=>{tx.set(ref,{state:JSON.stringify(n),rev:n.rev,dev:DEV,updatedAt:firebase.firestore.FieldValue.serverTimestamp()})}))
+      .then(()=>apply('Progress erased on every tablet.'))
+      .catch(()=>{$('#resetNote').textContent="Couldn't reach your account, so nothing was erased. Try again when the internet is working."});
+  }else apply('Progress erased.')}};
 $('#bkMake').onclick=()=>{let code='';try{code=btoa(unescape(encodeURIComponent(JSON.stringify(S))))}catch(e){}const o=$('#bkOut');o.value=code;o.hidden=false;$('#bkCopy').hidden=false;$('#bkNote').textContent='Code ready.';try{o.focus();o.select()}catch(e){}};
 $('#bkCopy').onclick=()=>{const o=$('#bkOut');const fb=()=>{try{o.focus();o.select()}catch(e){}$('#bkNote').textContent='The code is selected. Copy it with your device\'s Copy button.'};
   try{navigator.clipboard.writeText(o.value).then(()=>{$('#bkNote').textContent='Copied. Paste it into a text or email to yourself.'},fb)}catch(e){fb()}};
 let rArmed=false;
 $('#bkRestore').onclick=()=>{const b=$('#bkRestore'),note=$('#bkRNote');const code=$('#bkIn').value.trim();
   if(!code){note.textContent='Paste a code first.';return}
-  let obj=null;try{obj=JSON.parse(decodeURIComponent(escape(atob(code))))}catch(e){}
+  let obj=null;try{obj=JSON.parse(decodeURIComponent(escape(atob(code.replace(/\s+/g,'')))))}catch(e){}
   if(!obj||typeof obj!=='object'||!obj.skills){note.textContent='That code didn\'t work. Make sure you copied the whole thing.';return}
-  if(!rArmed){rArmed=true;b.classList.add('armed');b.textContent='Tap again to replace progress on this tablet';note.textContent='This replaces the progress saved on this tablet.';setTimeout(()=>{rArmed=false;b.classList.remove('armed');b.textContent='Restore from code'},5000);return}
-  rArmed=false;b.classList.remove('armed');b.textContent='Restore from code';S=Object.assign(DEF(),obj);S.rev=Math.max(S.rev||0,((loadRaw(KEY2)||{}).rev||0))+1;S.epoch=S.gts=stamp();migrate();$('#bkIn').value='';note.textContent='Progress restored.';drawParent()};
+  if(!rArmed){rArmed=true;b.classList.add('armed');b.textContent='Tap again to add this progress';note.textContent='Nothing is erased. Each game keeps whichever level is higher, and stars and stickers are added.';setTimeout(()=>{rArmed=false;b.classList.remove('armed');b.textContent='Add progress from code'},5000);return}
+  rArmed=false;b.classList.remove('armed');b.textContent='Add progress from code';
+  mergeFrom(obj,{ignoreEpoch:true,maxLevels:true,epochTallies:true});S.gts=stamp();migrate();urgentPush();$('#bkIn').value='';note.textContent='Progress added.';drawParent()};
 
 let unlocked=false;
 function unlockAudio(){if(unlocked)return;unlocked=true;tone([1],.01,'sine',.0002);if(hasTTS){try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u)}catch(e){}}}
@@ -1474,6 +1712,7 @@ try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{})}catch
 migrate();
 window.__jg={GAMES,S:()=>S,sk,lvr,setLevel,isMastered,isStruggling,ORDER,G:()=>G,attempt,finishQ,startRound,pickLevel,fallBack,stepBack,planAdventure,checkUnlocks,migrate,isUnlocked,show,endRound};
 show('home');
+cloudInit();
 })();
 </script>
 
