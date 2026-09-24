@@ -203,6 +203,25 @@ h1,h2,h3{font-family:var(--display);margin:0;line-height:1.05;text-wrap:balance}
 .buildbar .btn{font-weight:700;font-size:clamp(17px,3.2vmin,22px);padding:10px 18px}
 .buildarea{min-height:clamp(120px,24vmin,220px);display:flex;align-items:center;justify-content:center;width:100%}
 
+.field .it svg{width:1.1em;height:1.1em;display:block}
+.field .it.nope{opacity:.3}
+.bars{display:flex;flex-direction:column;gap:clamp(8px,2vmin,16px);width:min(94vw,760px)}
+.choice.barc{width:100%;min-height:0;padding:8px 12px;display:block}
+.choice.barc svg{width:100%;height:auto;display:block}
+.choice.tall{padding:6px 12px}
+.choice.tall svg{height:clamp(170px,40vmin,330px);width:auto;display:block}
+.scale svg{width:clamp(240px,58vmin,460px);height:auto;display:block}
+.mruler{width:min(94vw,820px);display:flex;justify-content:center}
+.mruler svg{width:100%;max-height:38vh;height:auto;display:block}
+.coins{display:flex;flex-wrap:wrap;gap:4px 8px;justify-content:center;align-items:center;max-width:min(94vw,900px)}
+.coins .coin{width:clamp(58px,12.5vmin,110px);aspect-ratio:1;display:block;border-radius:50%}
+.coins .coin svg{width:100%;height:100%;display:block}
+.coins .coin.hl{outline:4px solid var(--sun-d);outline-offset:1px}
+.pgraph{background:#fff;border:3px solid var(--ink);border-radius:18px;padding:6px 14px 8px;display:flex;flex-direction:column;box-shadow:var(--lift)}
+.pgraph .ptitle{font-family:var(--display);font-weight:800;font-size:clamp(17px,3.2vmin,24px);text-align:center;margin-bottom:2px}
+.pgraph .prow{display:flex;align-items:center;gap:8px;border-top:2px solid #E3E8F0;padding:2px 0}
+.pgraph .pl{width:clamp(48px,10vmin,84px);font-size:clamp(32px,7.4vmin,60px);text-align:center;border-right:3px solid var(--ink);line-height:1.2}
+.pgraph .pc{display:grid;grid-template-columns:repeat(8,clamp(32px,7.4vmin,60px));font-size:clamp(26px,6vmin,50px);line-height:1.2;text-align:center}
 .showcard{background:#fff;border:3px solid var(--ink);border-radius:26px;padding:6px 30px;font-size:clamp(70px,18vmin,150px);font-weight:700;line-height:1.1;box-shadow:var(--lift);display:flex;align-items:center;gap:14px}
 .showcard.pic{font-size:clamp(66px,16vmin,130px)}
 .showcard.md{font-size:clamp(50px,12vmin,100px)}
@@ -309,7 +328,7 @@ textarea{-webkit-user-select:text;user-select:text;font-family:ui-monospace,Cons
   </button>
   <h2 class="sect">Numbers <em>the big focus in kindergarten</em></h2>
   <div class="tiles" id="mathTiles"></div>
-  <h2 class="sect">Shapes &amp; Time</h2>
+  <h2 class="sect">Shapes, Time &amp; Measuring</h2>
   <div class="tiles" id="geoTiles"></div>
   <h2 class="sect">Letters &amp; Reading <em>keep it strong</em></h2>
   <div class="tiles" id="readTiles"></div>
@@ -354,7 +373,7 @@ textarea{-webkit-user-select:text;user-select:text;font-family:ui-monospace,Cons
     <div class="pcard">
       <h3>How the levels work</h3>
       <ul>
-        <li><b>The levels go all the way through 2nd grade:</b> <span id="lvTotal">143</span> levels in 16 games. She moves up only after she has really mastered a level.</li>
+        <li><b>The levels go all the way through 2nd grade:</b> <span id="lvTotal">176</span> levels in <span id="gTotal">20</span> games. She moves up only after she has really mastered a level.</li>
         <li><b>Mastered means 9 of her last 10 right on the first try</b>, with at least 8 tries at that level. If she mastered a level once before, 5 in a row wins it back.</li>
         <li><b>Say It Fast</b> only counts a number when she says it within about 3 seconds (4 seconds for big numbers). Kindergarten screeners time this skill.</li>
         <li><b>Every 4th question is review</b> from a level she already passed. If she misses 2 of her last 3 review questions from a level, the game sends her back to that level to practice it again.</li>
@@ -726,7 +745,7 @@ function safeOrder(vals,avoid,pre){
 function spellable(tiles,w){const c={};tiles.forEach(x=>{c[x]=(c[x]||0)+1});for(const ch of w){if(!c[ch])return false;c[ch]--}return true}
 const newRude=(base,tiles)=>RUDE.some(w=>w.length>=3&&spellable(tiles,w)&&!spellable(base,w));
 /* picture pairs a child could honestly name either way — never show them together */
-const CONFLICT=[['hat','cap'],['hand','clap'],['bus','van'],['boat','ship'],['bee','bug'],['pen','pin']];
+const CONFLICT=[['hat','cap'],['hand','clap'],['bus','van'],['boat','ship'],['bee','bug'],['pen','pin'],['cup','mug']];
 const clash=(a,b)=>CONFLICT.some(p=>p.includes(a)&&p.includes(b));
 
 /* ---------- level state ---------- */
@@ -777,7 +796,8 @@ const UNLOCK={
   subtract:{ok:()=>best('add')>=3,why:'Opens at Add It Up level 3'},
   place:{ok:()=>best('numbers')>=4&&best('frame')>=4,why:'Opens at Number Balloons level 4 and Fill the Frame level 4'},
   clock:{ok:()=>best('numbers')>=5,why:'Opens at Number Balloons level 5'},
-  spell:{ok:()=>best('words')>=2&&best('sounds')>=2,why:'Opens at Read It level 2 and Sound Match level 2'}
+  spell:{ok:()=>best('words')>=2&&best('sounds')>=2,why:'Opens at Read It level 2 and Sound Match level 2'},
+  builder:{ok:()=>best('sounds')>=2,why:'Opens at Sound Match level 2'}
 };
 const isUnlocked=id=>!UNLOCK[id]||S.unlockAll||S.unlocked.includes(id);
 function checkUnlocks(){const got=[];for(const id in UNLOCK){if(!S.unlocked.includes(id)&&UNLOCK[id].ok()){S.unlocked.push(id);got.push(id);logEv(id,'New game unlocked')}}return got}
@@ -930,12 +950,12 @@ function eqEl(parts){const e=el('div','eq');let box=null;parts.forEach(p=>{if(p=
 function fillBox(e,v){if(e&&e.box){e.box.textContent=v;e.box.classList.add('fill')}}
 function blocksEl(h,t,o,small){const w=el('div','blocks');if(small)w.style.setProperty('--u','clamp(6px,1.3vmin,11px)');const add=(n,cls)=>{if(!n)return;const g=el('div','bgrp');for(let i=0;i<n;i++)g.appendChild(el('div',cls));w.appendChild(g)};add(h,'flat');add(t,'rod');add(o,'cube');return w}
 function polyPts(n,r,rot){const p=[];for(let i=0;i<n;i++){const a=(rot+i*360/n-90)*Math.PI/180;p.push((50+r*Math.cos(a)).toFixed(1)+','+(50+r*Math.sin(a)).toFixed(1))}return p.join(' ')}
-function shapeSVG(kind,fill,rot){
+function shapeSVG(kind,fill,rot,tv){
   const S0='stroke="#2B2F4E" stroke-width="3" stroke-linejoin="round"';let inner;
   if(kind==='circle')inner=`<circle cx="50" cy="50" r="36" fill="${fill}" ${S0}/>`;
   else if(kind==='square')inner=`<polygon points="${polyPts(4,40,45+rot)}" fill="${fill}" ${S0}/>`;
   else if(kind==='rectangle')inner=`<rect x="12" y="31" width="76" height="38" fill="${fill}" ${S0} transform="rotate(${rot} 50 50)"/>`;
-  else if(kind==='triangle'){const v=pick(['eq','right','tall']);const pts=v==='eq'?polyPts(3,42,0):v==='right'?'18,80 82,80 18,22':'30,86 70,86 50,12';inner=`<polygon points="${pts}" fill="${fill}" ${S0} transform="rotate(${rot} 50 50)"/>`}
+  else if(kind==='triangle'){const v=tv||pick(['eq','right','tall']);const pts=v==='eq'?polyPts(3,42,0):v==='right'?'18,80 82,80 18,22':'30,86 70,86 50,12';inner=`<polygon points="${pts}" fill="${fill}" ${S0} transform="rotate(${rot} 50 50)"/>`}
   else inner=`<polygon points="${polyPts({pentagon:5,hexagon:6,octagon:8}[kind],40,rot)}" fill="${fill}" ${S0}/>`;
   return `<svg viewBox="0 0 100 100" aria-hidden="true">${inner}</svg>`;
 }
@@ -1464,7 +1484,298 @@ GAMES.spell={name:'Spell It',emoji:'✏️',area:'read',skill:'Spell words sound
   return q;
  }};
 
-const ORDER=['numbers','sayit','dots','count','compare','frame','next','add','subtract','place','shapes','clock','letters','sounds','words','spell'];
+/* ---------- sorting ---------- */
+const COLORS={red:'#E8474C',blue:'#3F7FE0',yellow:'#FFD23F',green:'#45B35A',purple:'#9159D6',orange:'#FF8A2A'};
+const KINDS={
+ animals:{many:'animals',e:[['🐶','dog'],['🐱','cat'],['🐮','cow'],['🐷','pig'],['🐰','bunny'],['🐵','monkey'],['🦁','lion'],['🐸','frog']]},
+ fruit:{many:'fruits',e:[['🍎','apple'],['🍌','banana'],['🍓','strawberry'],['🍍','pineapple'],['🍐','pear'],['🍊','orange'],['🍑','peach'],['🍉','watermelon']]},
+ go:{many:'things that go',e:[['🚗','car'],['🚌','bus'],['🚲','bike'],['🚂','train'],['✈️','plane'],['🚀','rocket'],['🚜','tractor'],['⛵','boat']]},
+ wear:{many:'things to wear',e:[['👕','shirt'],['👗','dress'],['🧥','coat'],['👟','shoe'],['🎩','hat'],['🧣','scarf'],['👔','tie'],['🧤','glove']]}
+};
+const an=w=>/^[aeiou]/.test(w)?'an':'a';
+/* colors a child could mix up are never the two groups */
+const CLOSE=[['red','orange'],['orange','yellow'],['blue','purple']];
+function colorSet(n){let c;do{c=shuffle(Object.keys(COLORS)).slice(0,n)}while(CLOSE.some(([x,y])=>c.includes(x)&&c.includes(y)));return c}
+function oddQ(l){
+  let opts,odd,why,lead,hint;
+  const tv=pick(['eq','right','tall']);
+  if(l===1){const [a,b]=colorSet(2),k=pick(['circle','square','triangle']);odd={k,c:b};opts=[{k,c:a},{k,c:a},{k,c:a},odd];
+   why=`Three are ${a}. This one is ${b}, so it does not belong.`;lead='Three are the same color. Which one does not belong?';hint='Look at the colors.'}
+  else if(l===2){const [a,b]=shuffle(['circle','square','triangle','rectangle']).slice(0,2),c=pick(Object.keys(COLORS));odd={k:b,c};opts=[{k:a,c},{k:a,c},{k:a,c},odd];
+   why=`Three are ${a}s. This one is ${an(b)} ${b}, so it does not belong.`;lead='Three are the same shape. Which one does not belong?';hint='Look at the shapes.'}
+  else{const [A,B]=shuffle(Object.keys(KINDS)).slice(0,2).map(k=>KINDS[k]);const three=shuffle(A.e).slice(0,3).map(([e,w])=>({e,w}));const [e,w]=pick(B.e);odd={e,w};opts=three.concat([odd]);
+   why=`The ${three[0].w}, ${three[1].w} and ${three[2].w} are ${A.many}. The ${w} is not.`;lead='Three of these go together. Which one does not belong?';hint='Which three go together?'}
+  opts=shuffle(opts);
+  const q={text:'Which one does not belong?',say:lead,hint,
+   render(st){if(l===3)st.appendChild(picRow(q,opts,odd));else st.appendChild(choiceRow(q,opts,odd,'svgc',(b,o)=>{b.innerHTML=shapeSVG(o.k,COLORS[o.c],0,tv);b.setAttribute('aria-label',o.c+' '+o.k)}))},
+   teach(done){q.correctEl&&q.correctEl.classList.add('show-me');say(why,done)}};
+  return q;
+}
+/* tap every one that fits the group, then say how many */
+function tapSortQ(l){
+  const t=rnd(2,l===4?6:8),o=rnd(2,6);let items,name;
+  if(l===4){const [a,b]=colorSet(2),sh=()=>pick(['circle','square','triangle']);name=`${a} ones`;
+   items=[...Array(t)].map(()=>({hit:1,k:sh(),c:a})).concat([...Array(o)].map(()=>({hit:0,k:sh(),c:b})))}
+  else if(l===5){const [a,b]=shuffle(['circle','square','triangle']).slice(0,2),cs=shuffle(Object.keys(COLORS)).slice(0,3);name=a+'s';
+   items=[...Array(t)].map(()=>({hit:1,k:a,c:pick(cs)})).concat([...Array(o)].map(()=>({hit:0,k:b,c:pick(cs)})))}
+  else{const [A,B]=shuffle(Object.keys(KINDS)).slice(0,2).map(k=>KINDS[k]);name=A.many;
+   items=shuffle(A.e).slice(0,t).map(([e,w])=>({hit:1,e,w})).concat(shuffle(B.e).slice(0,o).map(([e,w])=>({hit:0,e,w})))}
+  items=shuffle(items);let btns=[],c=0;
+  const q={text:`Tap all the ${name}!`,say:`Tap all the ${name}, and count them!`,hint:`That one is not one of the ${name}. Tap only the ${name}.`,
+   render(st){const f=el('div','field');st.appendChild(f);
+    btns=scatter(f,items.length,i=>items[i].e||'',b=>{if(!G||G.q!==q||G.locked||b.dataset.done)return;const d=items[+b.dataset.i];
+     if(d.hit){b.dataset.done='1';c++;b.classList.add('counted');b.appendChild(el('span','badge',c));sfx.tap();say(String(c));
+      if(c===t){q.hint=`Count the ${name} you tapped.`;setTimeout(()=>{if(!G||G.q!==q||G.locked)return;const txt=`How many ${name}?`;q.text=q.say=txt;setPrompt(txt);say(txt);st.appendChild(choiceRow(q,numOpts(t,4,1,Math.max(t+3,8)),t))},850)}}
+     else{b.dataset.done='x';b.classList.add('nope');attempt(q,false,b)}});
+    btns.forEach((b,i)=>{b.dataset.i=i;const d=items[i];if(d.e)b.setAttribute('aria-label',d.w);else{b.innerHTML=shapeSVG(d.k,COLORS[d.c],0);b.setAttribute('aria-label',d.c+' '+d.k)}});q.hits=btns.filter((b,i)=>items[i].hit)},
+   teach(done){countAlong(btns.filter((b,i)=>items[i].hit),'hl',()=>{q.correctEl&&q.correctEl.classList.add('show-me');say(`There are ${t} ${name}!`,done)},q)}};
+  return q;
+}
+/* two kinds mixed together: which group has more (or fewer)? */
+function mixCmpQ(){
+  const [A,B]=shuffle(ITEMS).slice(0,2),mode=pick(['more','fewer']);let a,b;
+  if(Math.random()<.15)a=b=rnd(3,8);else{a=rnd(3,9);do{b=rnd(3,9)}while(b===a||Math.abs(a-b)>3)}
+  const ans=a===b?'same':mode==='more'?(a>b?0:1):(a<b?0:1);
+  const kinds=shuffle([...Array(a)].map(()=>0).concat([...Array(b)].map(()=>1)));let btns=[];
+  const txt=`Are there ${mode} ${A.many} or ${mode} ${B.many}?`;
+  const q={text:txt,say:txt+' Or are they the same?',hint:'Count each kind. Tap them as you count.',
+   render(st){const f=el('div','field');st.appendChild(f);
+    btns=scatter(f,kinds.length,i=>[A,B][kinds[i]].e,bt=>{if(!G||G.q!==q||G.locked)return;bt.classList.toggle('counted');sfx.tap()});
+    btns.forEach((bt,i)=>bt.setAttribute('aria-label',[A,B][kinds[i]].one));
+    const row=el('div','choices');
+    [A,B].forEach((it,i)=>{const bt=el('button','btn choice pic',it.e);bt.setAttribute('aria-label',it.many);if(ans===i)q.correctEl=bt;bt.onclick=()=>attempt(q,ans===i,bt);row.appendChild(bt)});
+    const sb=el('button','btn same','Same!');if(ans==='same')q.correctEl=sb;sb.onclick=()=>attempt(q,ans==='same',sb);row.appendChild(sb);st.appendChild(row)},
+   teach(done){const grp=k=>btns.filter((bt,i)=>kinds[i]===k),hl=(k,on)=>grp(k).forEach(bt=>bt.classList.toggle('hl',on));
+    hl(0,true);say(`${a} ${A.many}.`,()=>{if(!G||G.q!==q)return;hl(0,false);hl(1,true);say(`${b} ${B.many}.`,()=>{if(!G||G.q!==q)return;hl(1,false);q.correctEl&&q.correctEl.classList.add('show-me');
+     say(ans==='same'?'They are the same!':`There are ${mode} ${[A,B][ans].many}.`,done)})})}};
+  return q;
+}
+function graphQ(){
+  const its=shuffle(ITEMS).slice(0,3),ns=its.map(()=>rnd(1,8));while(ns[0]===ns[1]&&ns[1]===ns[2])ns[2]=rnd(1,8);
+  const kind=pick(['one','more','total']);let text,ans,why,rows;
+  if(kind==='one'){const i=rnd(0,2);ans=ns[i];text=`How many ${its[i].many}?`;why=`Count the ${its[i].many} row: there are ${ans}.`}
+  else if(kind==='more'){let i,j;do{i=rnd(0,2);j=rnd(0,2)}while(i===j||ns[i]===ns[j]);if(ns[i]<ns[j])[i,j]=[j,i];ans=ns[i]-ns[j];
+   text=`How many more ${its[i].many} than ${its[j].many}?`;why=`There are ${ns[i]} ${its[i].many} and ${ns[j]} ${its[j].many}. ${ns[i]} is ${ans} more than ${ns[j]}.`}
+  else{ans=ns[0]+ns[1]+ns[2];text='How many in all?';why=`${ns.join(' plus ')} is ${ans}.`}
+  const q={text,say:`Look at the picture graph. ${text}`,hint:'Count the pictures in each row.',
+   render(st){const g=el('div','pgraph');g.appendChild(el('div','ptitle','What we counted'));rows=its.map((it,i)=>{const r=el('div','prow');const lb=el('div','pl',it.e);lb.setAttribute('aria-label',it.many);r.appendChild(lb);const c=el('div','pc');for(let k=0;k<ns[i];k++)c.appendChild(el('span',null,it.e));r.appendChild(c);g.appendChild(r);return r});st.appendChild(g);
+    st.appendChild(choiceRow(q,numOpts(ans,4,1,Math.max(ans+4,10)),ans))},
+   teach(done){q.correctEl&&q.correctEl.classList.add('show-me');say(why,done)}};
+  return q;
+}
+GAMES.sort={name:'Sort It Out',emoji:'🧺',area:'math',skill:'Sort into groups, count each group, read picture graphs',link:'Reveal Math Unit 4 · TN K.MD.C.4, 1.MD.C.5',
+ levels:[['Which one does not belong? (color)','K'],['Which one does not belong? (shape)','K'],['Which one does not belong? (kind)','K'],['Sort by color, then count','K'],['Sort by shape, then count','K'],['Sort by kind, then count','K'],['Mixed up: which group has more?','K'],['Read a picture graph','1']],
+ make(l){if(l<=3)return oddQ(l);if(l<=6)return tapSortQ(l);if(l===7)return mixCmpQ();return graphQ()}};
+
+/* ---------- measuring ---------- */
+const PCOL=['#FFC93C','#EF5B7E','#9159D6','#3F7FE0','#45B35A','#FF8A2A'];
+const f1=v=>(+v).toFixed(1);
+/* a pencil from x0 (eraser end) to x1 (point) */
+function pencilG(x0,x1,y,h,col){
+  const len=x1-x0,tip=Math.min(h*1.1,len*.3),er=Math.min(h*.7,len*.18),m=y+h/2,S1='stroke="#2B2F4E" stroke-width="1.2"';
+  return `<rect x="${f1(x0)}" y="${y}" width="${f1(er)}" height="${h}" rx="${f1(h*.25)}" fill="#FF9DB5" ${S1}/>`+
+   `<rect x="${f1(x0+er)}" y="${y}" width="${f1(len-tip-er)}" height="${h}" fill="${col}" ${S1}/>`+
+   `<polygon points="${f1(x1-tip)},${y} ${f1(x1)},${f1(m)} ${f1(x1-tip)},${y+h}" fill="#F6D7A7" ${S1} stroke-linejoin="round"/>`+
+   `<polygon points="${f1(x1-tip*.35)},${f1(m-h*.175)} ${f1(x1)},${f1(m)} ${f1(x1-tip*.35)},${f1(m+h*.175)}" fill="#2B2F4E"/>`;
+}
+const barSVG=(len,col)=>`<svg viewBox="0 0 124 14" aria-hidden="true">${pencilG(3,3+len,2,10,col)}</svg>`;
+function flowerSVG(h,col){
+  const top=114-h;let p='';for(let i=0;i<5;i++){const a=i*72*Math.PI/180;p+=`<circle cx="${f1(20+Math.sin(a)*6.5)}" cy="${f1(top-Math.cos(a)*6.5)}" r="5" fill="${col}" stroke="#2B2F4E" stroke-width="1"/>`}
+  return `<svg viewBox="0 0 40 120" aria-hidden="true"><rect x="18.5" y="${top}" width="3" height="${h}" fill="#4B9A42"/><ellipse cx="14" cy="${f1(top+h*.62)}" rx="5.5" ry="2.6" fill="#77C267" stroke="#2B2F4E" stroke-width=".8"/>${p}<circle cx="20" cy="${top}" r="4" fill="#FFC93C" stroke="#2B2F4E" stroke-width="1"/><rect x="0" y="114" width="40" height="6" fill="#8B5E3C"/></svg>`;
+}
+/* balance scale; tilt > 0 means the right side is down */
+function scaleSVG(le,re,tilt){
+  const th=tilt*Math.PI/180,cx=100,cy=48,L=66,c=Math.cos(th),s=Math.sin(th);
+  const lx=cx-L*c,ly=cy-L*s,rx=cx+L*c,ry=cy+L*s,S1='stroke="#2B2F4E" stroke-width="2"';
+  const pan=(x,y,e)=>`<line x1="${f1(x)}" y1="${f1(y)}" x2="${f1(x-20)}" y2="${f1(y+36)}" ${S1}/><line x1="${f1(x)}" y1="${f1(y)}" x2="${f1(x+20)}" y2="${f1(y+36)}" ${S1}/>`+
+   `<text x="${f1(x)}" y="${f1(y+33)}" font-size="28" text-anchor="middle">${e}</text><path d="M${f1(x-28)} ${f1(y+36)} Q${f1(x)} ${f1(y+54)} ${f1(x+28)} ${f1(y+36)} Z" fill="#9ED8FF" ${S1}/>`;
+  return `<svg viewBox="0 0 200 134" aria-hidden="true"><polygon points="${cx-8},${cy} ${cx+8},${cy} ${cx+24},128 ${cx-24},128" fill="#6D55B8" ${S1}/>`+
+   `<line x1="${f1(lx)}" y1="${f1(ly)}" x2="${f1(rx)}" y2="${f1(ry)}" stroke="#2B2F4E" stroke-width="6" stroke-linecap="round"/>${pan(lx,ly,le)}${pan(rx,ry,re)}<circle cx="${cx}" cy="${cy}" r="5" fill="#FFC93C" ${S1}/></svg>`;
+}
+/* pencils measured in whole units, with cubes or an inch ruler under them */
+function rulerSVG(pens,opt){
+  const U=10,X=8,n=opt.units||10,W=X*2+n*U;let y=4,s='';
+  pens.forEach(p=>{s+=pencilG(X+p.a*U,X+p.b*U,y,10,p.col);y+=16});
+  if(opt.cubes){for(let i=0;i<opt.cubes;i++)s+=`<rect x="${X+i*U}" y="${y}" width="${U}" height="${U}" fill="${i%2?'#9ED8FF':'#FFD166'}" stroke="#2B2F4E" stroke-width="1"/>`;y+=U+3}
+  if(opt.ruler){s+=`<rect x="${X-5}" y="${y}" width="${n*U+10}" height="18" rx="2" fill="#FFE9A8" stroke="#2B2F4E" stroke-width="1.2"/>`;
+   for(let i=0;i<=n;i++){const x=X+i*U;s+=`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+7}" stroke="#2B2F4E" stroke-width="1"/><text x="${x}" y="${y+15}" text-anchor="middle" font-size="6.5" font-weight="700" fill="#2B2F4E" font-family="Andika,sans-serif">${i}</text>`}
+   y+=18}
+  return `<svg viewBox="0 0 ${W} ${y+3}" aria-hidden="true">${s}</svg>`;
+}
+/* ordered lightest to heaviest; pairs are always at least 2 steps apart, so the answer is never a close call */
+const WT=[['🍃','leaf'],['🍓','strawberry'],['🍎','apple'],['🍍','pineapple'],['🍉','watermelon'],['🐶','dog'],['🐷','pig'],['🐴','horse'],['🐘','elephant']].map(([e,w])=>({e,w}));
+GAMES.measure={name:'Measure Up',emoji:'📏',area:'geo',skill:'Compare and measure length, height and weight',link:'TN K.MD.A.1–2, 1.MD.A.1–2, 2.MD.A.1, 2.MD.A.4',
+ levels:[['Which is longer?','K'],['Longer or shorter?','K'],['Taller or shorter?','K'],['Heavier or lighter?','K'],['Longest and shortest of three','1'],['How many cubes long?','1'],['Measure with a ruler','2'],['A ruler that doesn\'t start at 0','2'],['How much longer?','2']],
+ make(l){
+  const cols=shuffle(PCOL);
+  if(l===1||l===2||l===5){
+   const n=l===5?3:2,gap=l===1?34:l===2?14:12;let lens;
+   do{lens=[...Array(n)].map(()=>rnd(30,118))}while(lens.some((x,i)=>lens.some((y,j)=>i!==j&&Math.abs(x-y)<gap)));
+   const mode=l===1?'longer':l===2?pick(['longer','shorter']):pick(['longest','shortest']),far=mode.startsWith('long');
+   const idx=lens.indexOf(far?Math.max(...lens):Math.min(...lens));
+   const q={text:`Which pencil is ${mode}?`,hint:'They all start at the same place. Look at where each one ends.',
+    render(st){const w=el('div','bars');lens.forEach((len,i)=>{const b=el('button','btn choice barc');b.innerHTML=barSVG(len,cols[i]);b.setAttribute('aria-label','pencil '+(i+1));if(i===idx)q.correctEl=b;b.onclick=()=>attempt(q,i===idx,b);w.appendChild(b)});st.appendChild(w)},
+    teach(done){q.correctEl&&q.correctEl.classList.add('show-me');say(`This pencil is ${l===5?'the '+mode:mode}. ${far?'It goes the farthest.':'It stops first.'}`,done)}};
+   return q;
+  }
+  if(l===3){let h1,h2;do{h1=rnd(30,100);h2=rnd(30,100)}while(Math.abs(h1-h2)<14);
+   const hs=[h1,h2],mode=pick(['taller','shorter']),idx=mode==='taller'?(h1>h2?0:1):(h1<h2?0:1);
+   const q={text:`Which flower is ${mode}?`,hint:'They both start at the ground. Look at the tops.',
+    render(st){const row=el('div','choices');hs.forEach((h,i)=>{const b=el('button','btn choice tall');b.innerHTML=flowerSVG(h,cols[i]);b.setAttribute('aria-label','flower '+(i+1));if(i===idx)q.correctEl=b;b.onclick=()=>attempt(q,i===idx,b);row.appendChild(b)});st.appendChild(row)},
+    teach(done){q.correctEl&&q.correctEl.classList.add('show-me');say(`This flower is ${mode}. ${mode==='taller'?'It reaches higher.':'It does not reach as high.'}`,done)}};
+   return q;
+  }
+  if(l===4){let i,j;do{i=rnd(0,WT.length-1);j=rnd(0,WT.length-1)}while(j-i<2);
+   const light=WT[i],heavy=WT[j],hr=Math.random()<.5,left=hr?light:heavy,right=hr?heavy:light,mode=pick(['heavier','lighter']),correct=mode==='heavier'?heavy:light;
+   const q={text:`Which is ${mode}?`,say:`Look at the scale. Which is ${mode}, the ${left.w} or the ${right.w}?`,hint:'The heavier side goes down.',
+    render(st){const w=el('div','scale');w.innerHTML=scaleSVG(left.e,right.e,hr?14:-14);st.appendChild(w);st.appendChild(picRow(q,[left,right],correct))},
+    teach(done){q.correctEl&&q.correctEl.classList.add('show-me');say(`The ${heavy.w} is heavier, so its side goes down. The ${light.w} is lighter.`,done)}};
+   return q;
+  }
+  let pens,ans,opts,text,sayT,hint,why;const units=10;
+  if(l===6){const n=rnd(2,10);ans=n;pens=[{a:0,b:n,col:cols[0]}];opts=numOpts(n,4,1,12);text='How many cubes long?';sayT='How many cubes long is the pencil?';hint='Count the cubes under the pencil.';
+   why=`${[...Array(n)].map((_,i)=>i+1).join(', ')}. The pencil is ${n} cubes long!`}
+  else if(l===7){const n=rnd(2,10);ans=n;pens=[{a:0,b:n,col:cols[0]}];opts=numOpts(n,4,1,12);text='How many inches long?';sayT='How many inches long is the pencil?';hint='Where does the point of the pencil end?';
+   why=`The pencil starts at 0 and ends at ${n}. It is ${n} ${n===1?'inch':'inches'} long.`}
+  else if(l===8){const a=rnd(1,4),len=rnd(2,6),b=a+len;ans=len;pens=[{a,b,col:cols[0]}];opts=uniqOpts(len,shuffle([b,len+1,len-1,a]),4,1);text='How many inches long?';sayT='Careful! How many inches long is the pencil?';hint='Where does the pencil start? Count the spaces from there.';
+   why=`It starts at ${a} and ends at ${b}. From ${a} to ${b} is ${len} inches.`}
+  else{const x=rnd(3,10),y=rnd(Math.max(1,x-6),x-1);ans=x-y;pens=[{a:0,b:x,col:cols[0]},{a:0,b:y,col:cols[1]}];opts=uniqOpts(ans,shuffle([x,y,ans+1,ans-1]),4,1);text='How much longer is the top pencil?';sayT='How many inches longer is the top pencil than the bottom pencil?';hint='Measure both pencils. Then find the difference.';
+   why=`The top pencil is ${x} inches. The bottom one is ${y} inches. ${x} minus ${y} is ${ans}, so it is ${ans} ${ans===1?'inch':'inches'} longer.`}
+  const q={text,say:sayT,hint,
+   render(st){const w=el('div','mruler');w.innerHTML=rulerSVG(pens,{units,cubes:l===6?pens[0].b:0,ruler:l>=7});st.appendChild(w);st.appendChild(choiceRow(q,opts,ans))},
+   teach(done){q.correctEl&&q.correctEl.classList.add('show-me');say(why,done)}};
+  return q;
+ }};
+
+/* ---------- money ---------- */
+/* sizes follow the real coins: dime < penny < nickel < quarter */
+const COIN={penny:{v:1,r:36,f:'#C87A45',d:'#8A4B22',rd:0,t:'ONE CENT'},nickel:{v:5,r:40,f:'#C4C8CE',d:'#6F7580',rd:0,t:'FIVE CENTS'},dime:{v:10,r:34,f:'#DADDE2',d:'#6F7580',rd:1,t:'ONE DIME'},quarter:{v:25,r:46,f:'#D2D5DA',d:'#6F7580',rd:1,t:'QUARTER'}};
+const COINS=['penny','nickel','dime','quarter'],CPL={penny:'pennies',nickel:'nickels',dime:'dimes',quarter:'quarters'};
+const CHINT={penny:'A penny is brown. It is worth 1 cent.',nickel:'A nickel is silver, bigger than a penny, with a smooth edge. It is worth 5 cents.',dime:'A dime is the smallest coin. It is silver, and worth 10 cents.',quarter:'A quarter is the biggest coin. It is worth 25 cents.'};
+const cents=n=>`${n} ${n===1?'cent':'cents'}`;
+function coinSVG(k,lab){
+  const c=COIN[k];let s=`<circle cx="50" cy="50" r="${c.r}" fill="${c.f}" stroke="${c.d}" stroke-width="2.5"/>`;
+  if(c.rd)for(let i=0;i<60;i++){const a=i*6*Math.PI/180;s+=`<line x1="${f1(50+Math.sin(a)*(c.r-3))}" y1="${f1(50-Math.cos(a)*(c.r-3))}" x2="${f1(50+Math.sin(a)*c.r)}" y2="${f1(50-Math.cos(a)*c.r)}" stroke="${c.d}" stroke-width="1"/>`}
+  s+=`<circle cx="50" cy="50" r="${c.r-6}" fill="none" stroke="${c.d}" stroke-width="1" opacity=".7"/><ellipse cx="${50-c.r*.35}" cy="${50-c.r*.4}" rx="${f1(c.r*.28)}" ry="${f1(c.r*.14)}" fill="#fff" opacity=".35" transform="rotate(-35 ${50-c.r*.35} ${50-c.r*.4})"/>`;
+  s+=lab?`<text x="50" y="${f1(50+c.r*.28)}" text-anchor="middle" font-size="${f1(c.r*.78)}" font-weight="700" fill="#2B2F4E" font-family="Andika,sans-serif">${c.v}¢</text>`
+    :`<text x="50" y="${f1(50+c.r*.07)}" text-anchor="middle" font-size="${f1(c.r*.19)}" font-weight="700" fill="${c.d}" font-family="Andika,sans-serif">${c.t}</text>`;
+  return `<svg viewBox="0 0 100 100" aria-hidden="true">${s}</svg>`;
+}
+function coinRow(list,lab){const w=el('div','coins');const nodes=list.map(k=>{const c=el('span','coin');c.innerHTML=coinSVG(k,lab);c.setAttribute('aria-label',k);w.appendChild(c);return c});return {w,nodes}}
+function countCoins(q,nodes,list,final,done){let i=0,tot=0;const step=()=>{if(!G||G.q!==q)return;nodes.forEach(n=>n.classList.remove('hl'));if(i>=nodes.length){q.correctEl&&q.correctEl.classList.add('show-me');say(final(tot),done);return}nodes[i].classList.add('hl');tot+=COIN[list[i]].v;i++;say(String(tot));setTimeout(step,850)};step()}
+const coinSum=list=>list.reduce((a,k)=>a+COIN[k].v,0);
+function coinMix(l){
+  const rep=(k,n)=>[...Array(n)].map(()=>k);let list;
+  for(let g=0;g<400;g++){
+   if(l===5)list=rep('dime',rnd(1,6)).concat(rep('penny',rnd(1,9)));
+   else if(l===6)list=rep('dime',rnd(0,5)).concat(rep('nickel',rnd(0,3)),rep('penny',rnd(0,6)));
+   else list=rep('quarter',rnd(1,3)).concat(rep('dime',rnd(0,3)),rep('nickel',rnd(0,2)),rep('penny',rnd(0,5)));
+   const t=coinSum(list);if(list.length>=3&&new Set(list).size>=2&&t<100&&t>=(l===8?10:1))break}
+  return list;
+}
+const TOYS=[['🍭','lollipop'],['🎈','balloon'],['🧸','teddy bear'],['🍪','cookie'],['🖍️','crayon'],['🪀','yo-yo']];
+GAMES.money={name:'Coin Shop',emoji:'💰',area:'math',skill:'Know the coins and count money',link:'TN K.MD.B.3, 1.MD.B.4, 2.MD.C.8',
+ levels:[['Find the coin','K'],['What is each coin worth?','K'],['Count pennies','1'],['Count nickels, dimes or quarters','1'],['Dimes and pennies','2'],['Dimes, nickels and pennies','2'],['Add quarters too','2'],['Do you have enough?','2']],
+ make(l){
+  if(l===1){const k=pick(COINS);
+   const q={text:`Find the ${k}.`,say:`Find the ${k}!`,hint:CHINT[k],reveal:`This is the ${k}. ${CHINT[k]}`,
+    render(st){st.appendChild(choiceRow(q,shuffle(COINS),k,'svgc',(b,x)=>{b.innerHTML=coinSVG(x);b.setAttribute('aria-label',x)}))}};return q}
+  if(l===2){const k=pick(COINS),v=COIN[k].v,named=Math.random()<.5;
+   const q={text:named?`How much is a ${k} worth?`:'How much is this coin worth?',say:named?`This is a ${k}. How much is a ${k} worth?`:'Look at the coin. How much is it worth?',hint:named?`Think: is a ${k} worth 1, 5, 10 or 25 cents?`:'Which coin is it? Look at its color and size.',
+    render(st){const w=el('div','bigsvg');w.innerHTML=coinSVG(k);st.appendChild(w);st.appendChild(choiceRow(q,[1,5,10,25],v,'word',(b,x)=>{b.textContent=x+'¢'}))},
+    teach(done){q.correctEl&&q.correctEl.classList.add('show-me');say(`This is ${an(k)} ${k}. ${an(k)[0].toUpperCase()+an(k).slice(1)} ${k} is worth ${cents(v)}.`,done)}};return q}
+  let list,opts,sayT,hint;
+  if(l===3){list=[...Array(rnd(2,12))].map(()=>'penny')}
+  else if(l===4){const k=pick(['nickel','dime','quarter']),n=k==='nickel'?rnd(2,8):k==='dime'?rnd(2,9):rnd(2,3);list=[...Array(n)].map(()=>k)}
+  else list=coinMix(l);
+  list.sort((a,b)=>COIN[b].v-COIN[a].v);const tot=coinSum(list),lab=l<=5;
+  if(l===8){
+   const yes=Math.random()<.5||tot>=99,price=yes?rnd(Math.max(5,tot-20),tot):rnd(tot+1,Math.min(99,tot+20)),[e,w]=pick(TOYS);let nodes;
+   const q={text:'Do you have enough money?',say:`The ${w} costs ${cents(price)}. Do you have enough money to buy it?`,hint:'Count your coins. Is it as much as the price?',
+    render(st){st.appendChild(el('div','showcard md',`${e} ${price}¢`));const r=coinRow(list,false);nodes=r.nodes;st.appendChild(r.w);const row=el('div','yn');
+     [['👍 Yes',1],['👎 No',0]].forEach(([lb,v])=>{const b=el('button','btn choice word',lb);if(v===+yes)q.correctEl=b;b.onclick=()=>attempt(q,v===+yes,b);row.appendChild(b)});st.appendChild(row)},
+    teach(done){countCoins(q,nodes,list,t=>`You have ${cents(t)}. The ${w} costs ${cents(price)}. ${t>=price?'Yes, that is enough!':'No, that is not enough.'}`,done)}};
+   return q;
+  }
+  if(l===3){opts=numOpts(tot,4,1,20);sayT='How much money? Count the pennies.';hint='Each penny is 1 cent.'}
+  else if(l===4){const k=list[0],v=COIN[k].v;opts=stepOpts(tot,v);sayT=`Count the ${CPL[k]}. How much money?`;hint=`Each ${k} is ${cents(v)}. Count by ${v}s.`}
+  else{opts=uniqOpts(tot,shuffle([list.length,tot+10,tot-10,tot+5,tot-5,tot+1]),4,1);sayT='How much money? Start with the coins worth the most.';hint='Start with the coins worth the most, then count on.'}
+  let nodes;
+  const q={text:'How much money?',say:sayT,hint,
+   render(st){const r=coinRow(list,lab);nodes=r.nodes;st.appendChild(r.w);st.appendChild(choiceRow(q,opts,tot,'word',(b,x)=>{b.textContent=x+'¢'}))},
+   teach(done){countCoins(q,nodes,list,t=>`That's ${cents(t)}!`,done)}};
+  return q;
+ }};
+
+/* ---------- sound builder: word parts, blending, changing sounds ----------
+   Every word here is hand-picked; swaps only ever pair two words that are both in this list. */
+const SP={b:'buh',k:'kuh',d:'duh',f:'fuh',g:'guh',h:'huh',j:'juh',l:'luh',m:'muh',n:'nuh',p:'puh',r:'ruh',s:'suh',t:'tuh',v:'vuh',w:'wuh',z:'zuh',sh:'shuh',ch:'chuh',
+  a:'aah',e:'eh',i:'ih',o:'aw',aw:'aw',u:'uh',oo:'oo',ay:'ay',oh:'oh',ee:'ee',ie:'eye',ow:'ow',air:'air'};
+const BW=[['bee','🐝','b ee'],['key','🔑','k ee'],['shoe','👟','sh oo'],['egg','🥚','e g'],['tie','👔','t ie'],['pie','🥧','p ie'],['cow','🐮','k ow'],['bear','🐻','b air'],['pear','🍐','p air'],['chair','🪑','ch air'],
+ ['cat','🐱','k a t'],['hat','🎩','h a t'],['bat','🦇','b a t'],['rat','🐀','r a t'],['map','🗺️','m a p'],['cap','🧢','k a p'],['van','🚐','v a n'],['bag','👜','b a g'],
+ ['sun','☀️','s u n'],['bus','🚌','b u s'],['bug','🐛','b u g'],['nut','🥜','n u t'],['mug','☕','m u g'],['cup','🥤','k u p'],['duck','🦆','d u k'],
+ ['dog','🐶','d o g'],['sock','🧦','s o k'],['lock','🔒','l o k'],['pig','🐷','p i g'],['pin','📌','p i n'],['fish','🐟','f i sh'],['dish','🍽️','d i sh'],['ship','🚢','sh i p'],
+ ['bed','🛏️','b e d'],['pen','🖊️','p e n'],['hen','🐔','h e n'],['ten','🔟','t e n'],['web','🕸️','w e b'],['leg','🦵','l e g'],['bell','🔔','b e l'],['ball','⚽','b aw l'],
+ ['moon','🌙','m oo n'],['cake','🎂','k ay k'],['boat','⛵','b oh t'],['goat','🐐','g oh t'],['coat','🧥','k oh t'],['bone','🦴','b oh n'],['kite','🪁','k ie t'],['nose','👃','n oh z'],['rose','🌹','r oh z'],
+ ['house','🏠','h ow s'],['mouse','🐭','m ow s']].map(([w,e,p])=>({w,e,p:p.split(' ')}));
+const BW4=[['frog','🐸','f r o g'],['drum','🥁','d r u m'],['crab','🦀','k r a b'],['flag','🚩','f l a g'],['sled','🛷','s l e d'],['plug','🔌','p l u g'],['tent','⛺','t e n t'],['hand','✋','h a n d'],['gift','🎁','g i f t'],
+ ['milk','🥛','m i l k'],['truck','🚚','t r u k'],['clock','🕐','k l o k'],['snake','🐍','s n ay k'],['spoon','🥄','s p oo n'],['snail','🐌','s n ay l'],['train','🚆','t r ay n'],['plane','✈️','p l ay n']].map(([w,e,p])=>({w,e,p:p.split(' ')}));
+/* compound words: [word, its picture (or none), part taken away, part left, picture of what's left, picture of the part taken away] */
+const CMP=[['cupcake','🧁','cup','cake','🎂','🥤'],['cupcake','🧁','cake','cup','🥤','🎂'],['popcorn','🍿','pop','corn','🌽',''],['sunflower','🌻','sun','flower','🌷','☀️'],['sunflower','🌻','flower','sun','☀️','🌷'],
+ ['football','🏈','foot','ball','⚽','🦶'],['football','🏈','ball','foot','🦶','⚽'],['snowman','⛄','man','snow','❄️',''],['ladybug','🐞','lady','bug','🐛',''],['pancake','🥞','pan','cake','🎂',''],
+ ['cowboy','🤠','boy','cow','🐮','👦'],['rainbow','🌈','rain','bow','🎀','🌧️'],['rainbow','🌈','bow','rain','🌧️','🎀'],['starfish','','star','fish','🐟','⭐'],['starfish','','fish','star','⭐','🐟'],
+ ['doghouse','','dog','house','🏠','🐶'],['doghouse','','house','dog','🐶','🏠'],['hotdog','🌭','hot','dog','🐶',''],['firetruck','🚒','fire','truck','🚚','🔥'],['firetruck','🚒','truck','fire','🔥','🚚']]
+ .map(([c,ce,rm,w,e,re])=>({c,ce,rm,w,e,re}));
+const bsnd=p=>p.map(x=>SP[x]).join('... ');
+/* word pairs that differ in exactly one sound, split by where that sound is */
+const SWAPS={first:[],last:[],mid:[]};
+BW.forEach(a=>BW.forEach(b=>{if(a===b||a.p.length!==b.p.length||clash(a.w,b.w))return;const n=a.p.length,d=[...Array(n).keys()].filter(i=>a.p[i]!==b.p[i]);if(d.length!==1)return;const i=d[0];
+ SWAPS[i===0?'first':i===n-1?'last':'mid'].push({a,b,i})}));
+/* pictures for one question: the answer first, then the best-scoring others that can't be confused with any already chosen */
+function pickPics(start,cands,k,score){
+  const out=start.slice();const c=shuffle(cands);if(score)c.sort((x,y)=>score(y)-score(x));
+  for(const x of c){if(out.length>=k)break;if(!out.some(o=>o.w===x.w||o.e===x.e||clash(o.w,x.w)))out.push(x)}
+  return shuffle(out);
+}
+function blendQ(pool,k,alike){
+  const t=pick(pool),snd=bsnd(t.p);const opts=pickPics([t],pool,k,alike?x=>x.p.filter((s,i)=>t.p[i]===s).length:null);
+  const q={text:'Put the sounds together. Which picture is it?',say:`Listen. ${snd}. What word is that?`,hint:`${snd}. Say the sounds faster and faster.`,
+   render(st){const ear=el('button','showcard pic','👂');ear.setAttribute('aria-label','Hear the sounds again');ear.onclick=()=>{if(G.locked)return;say(snd)};st.appendChild(ear);st.appendChild(picRow(q,opts,t))},
+   teach(done){q.correctEl&&q.correctEl.classList.add('show-me');say(`${snd}... ${t.w}!`,done)}};
+  return q;
+}
+function cmpQ(){
+  const t=pick(CMP),ans={w:t.w,e:t.e},pool=[];CMP.forEach(x=>{pool.push({w:x.w,e:x.e});if(x.re)pool.push({w:x.rm,e:x.re})});
+  const start=[ans];if(t.re)start.push({w:t.rm,e:t.re});const opts=pickPics(start,pool.filter(x=>x.w!==t.c),3);
+  const q={text:'Take away a part. What is left?',say:`Say ${t.c}. Now say ${t.c}, but don't say ${t.rm}. What is left?`,hint:`${t.c}, without ${t.rm}. Which part is left?`,
+   render(st){st.appendChild(el('div','showcard pic',t.ce||'👂'));st.appendChild(picRow(q,opts,ans))},
+   teach(done){q.correctEl&&q.correctEl.classList.add('show-me');say(`${t.c} without ${t.rm} is ${t.w}!`,done)}};
+  return q;
+}
+function swapQ(kind){
+  const {a,b,i}=pick(SWAPS[kind]),from=SP[a.p[i]],to=SP[b.p[i]],pos={first:'first',last:'last',mid:'middle'}[kind];
+  const same=BW.filter(x=>x.p.length===a.p.length&&x!==a&&x!==b);
+  /* the answer, the word she started with (the usual slip), and one that shares the new sound */
+  const opts=pickPics([b,a],same,3,x=>x.p[i]===b.p[i]?1:0);
+  const q={text:'Change one sound. What is the new word?',say:`${a.w}. Change the ${pos} sound, ${from}, to ${to}. What word do you get?`,hint:`${bsnd(a.p)}. Now say ${to} instead of ${from}.`,
+   render(st){st.appendChild(el('div','showcard pic',a.e));st.appendChild(picRow(q,opts,b))},
+   teach(done){q.correctEl&&q.correctEl.classList.add('show-me');say(`${bsnd(b.p)}... ${b.w}! ${a.w} turns into ${b.w}.`,done)}};
+  return q;
+}
+GAMES.builder={name:'Sound Builder',emoji:'🧩',area:'read',skill:'Blend sounds into words, and change sounds to make new words',link:'TN K.FL.PA.2',
+ levels:[['Take away a word part (cupcake → cake)','K'],['Blend 2 sounds (b-ee → bee)','K'],['Blend 3 sounds (c-a-t)','K'],['Blend 3 sounds, pictures that sound alike','K'],['Change the first sound (cat → hat)','K'],['Blend 4 sounds (f-r-o-g)','1'],['Change the last sound (cat → cap)','1'],['Change the middle sound (cap → cup)','1']],
+ make(l){
+  if(l===1)return cmpQ();
+  if(l===2)return blendQ(BW.filter(x=>x.p.length===2),3);
+  if(l===3)return blendQ(BW.filter(x=>x.p.length===3),3);
+  if(l===4)return blendQ(BW.filter(x=>x.p.length===3),4,true);
+  if(l===5)return swapQ('first');
+  if(l===6)return blendQ(BW4,4,true);
+  return swapQ(l===7?'last':'mid');
+ }};
+
+const ORDER=['numbers','sayit','dots','count','compare','sort','frame','next','add','subtract','place','money','shapes','measure','clock','letters','sounds','builder','words','spell'];
+const NEWG=['sort','measure','money','builder'];
 
 /* ---------- screens ---------- */
 function show(id){['home','path','game','parent'].forEach(s=>$('#'+s).hidden=s!==id);if(id==='home')drawHome();if(id==='path')drawPath();if(id==='parent')drawParent();if(id!=='game')hush()}
@@ -1476,7 +1787,7 @@ function tileFor(id){
    b.appendChild(el('div','lvtxt',`Level ${s.lvl} of ${max}`));
    const bar=el('div','prog');const f=el('i');f.style.width=Math.round(masteredCount(id)/max*100)+'%';bar.appendChild(f);b.appendChild(bar);
    b.appendChild(el('span','bandchip',BANDS[g.levels[s.lvl-1][1]]));
-   if(UNLOCK[id]&&!S.seen[id])b.appendChild(el('span','tag new','New!'));
+   if((UNLOCK[id]||NEWG.includes(id))&&!S.seen[id])b.appendChild(el('span','tag new','New!'));
    if(g.together)b.appendChild(el('span','tag','play with a grown-up'));
   }else b.appendChild(el('div','lvtxt',UNLOCK[id].why));
   b.onclick=()=>{unlockAudio();if(!un){sfx.no();say(`Keep playing to unlock ${g.name}!`);return}P=id;show('path')};
@@ -1512,7 +1823,7 @@ function drawPath(){
 function pct(h){return h.length?Math.round(100*h.reduce((a,b)=>a+b,0)/h.length):null}
 function drawParent(){
   $('#saveWarn').hidden=saveOK;
-  $('#lvTotal').textContent=ORDER.reduce((a,id)=>a+GAMES[id].levels.length,0);
+  $('#lvTotal').textContent=ORDER.reduce((a,id)=>a+GAMES[id].levels.length,0);$('#gTotal').textContent=ORDER.length;
   const days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));const k=d.toLocaleDateString('en-CA');return{k,lab:d.toLocaleDateString('en-US',{weekday:'short'}),v:dayTotals(k)}});
   const mins=Math.round(days.reduce((a,d)=>a+d.v.sec,0)/60),qs=days.reduce((a,d)=>a+d.v.q,0),oks=days.reduce((a,d)=>a+d.v.ok,0),act=days.filter(d=>d.v.q>0).length;
   $('#weekSum').textContent=qs?`${act} of 7 days · about ${mins} min · ${qs} questions · ${Math.round(100*oks/qs)}% right on the first try · ${stickerCount()} stickers so far`:'No practice yet this week. The bars fill in as she plays.';
